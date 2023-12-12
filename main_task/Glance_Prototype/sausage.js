@@ -485,21 +485,24 @@ const cubeDrawCall = glance.createDrawCall(
 
 let cubeRotationMatrix =  mat4.identity();
 
+let xAxis = [1,0,0]
+let zAxis = [0,0,1]
+
 function rotateAroundAxis2(degree, axis) {
-    let rotationMatrix = mat4.fromRotation(degree, [1,0,0]);
+    let rotationMatrix = 0;
     console.log(currentRotation)
     switch(currentRotation){
         case("backward"):
-            rotationMatrix = mat4.fromRotation(degree, [1,0,0]);
+            rotationMatrix = mat4.fromRotation(degree, xAxis);
             break;
         case("forward"):
-            rotationMatrix = mat4.fromRotation(-degree, [1,0,0]);
+            rotationMatrix = mat4.fromRotation(-degree, xAxis);
             break;
         case("right"):
-            rotationMatrix = mat4.fromRotation(degree, [0,0,1]);
+            rotationMatrix = mat4.fromRotation(-degree, zAxis);
             break;
         case("left"):
-            rotationMatrix = mat4.fromRotation(-degree, [0,0,1]);
+            rotationMatrix = mat4.fromRotation(degree, zAxis);
             break;
         default:
             break;
@@ -550,9 +553,12 @@ let startTime = 0
 let startedAnimation = false
 
 let rotEnded = false
-let axis = [0,-0.2,0.2]
 
-
+let backAxis = [0,-0.2,0.2]
+let forwardAxis = [0,-0.2,-0.2]
+let rightAxis = [0.2,-0.2,0]
+let leftAxis = [-0.2,-0.2,0]
+let axis = backAxis
 
 
 function tween(start, end, duration, time) {
@@ -594,18 +600,81 @@ setRenderLoop((time) =>
     glance.performDrawCall(gl, skyDrawCall, time)
 
     if(rotEnded){
-        // the Matrix for making rotations around is rotated 90 degrees, and new bottom axis will be defined
+        
+        
+        // the Matrix for making rotations is rotated 90 degrees, and new bottom axis will be defined
         cubeRotationMatrix = rotateAroundAxis2(Math.PI/2,axis)
-        let y = round2Decimals(0.4 * Math.cos(idx * Math.PI/2)) 
-        let z = round2Decimals(0.4 * Math.sin(idx * (Math.PI/2 - Math.PI))) 
-        axis[1] += y
-        axis[2] += z
-        console.log("y="+y +" z="+z)
+
+        let x = 0;
+        let y = 0;
+        let z = 0;
+      //  let y = round2Decimals(0.4 * Math.cos(idx * Math.PI/2)) 
+      //  let z = round2Decimals(0.4 * Math.sin(idx * (Math.PI/2 - Math.PI))) 
+     
+        switch(currentRotation){
+            case("backward"):
+                y =  backwardArrayY[idx]
+                z =  backwardArrayZ[idx]
+                break;
+            case("forward"):
+                y =  forwardArrayY[idx]
+                z =  forwardArrayZ[idx]
+                break;
+            case("right"):
+                x = rightArrayX[idx]
+                y = rightArrayY[idx]
+                break;
+            case("left"):
+                x = leftArrayX[idx]
+                y = leftArrayY[idx]
+                break;
+        }
+
+        
+
+        updateAllAxes(x,y,z)
+        
+
+
+       // axis[1] += y
+       // axis[2] += z
+       // console.log("y="+y +" z="+z)
+
         idx++;
+        if( idx >=4){
+            idx = 0
+        }
         rotEnded = false
     }
 })
 
+let forwardArrayY = [0.4, 0, -0.4, 0]
+let forwardArrayZ = [0, 0.4, 0, -0.4]
+let backwardArrayY = [0.4, 0, -0.4, 0]
+let backwardArrayZ = [0, -0.4, 0, 0.4] 
+let leftArrayY = [0.4, 0, -0.4, 0]
+let leftArrayX = [0, 0.4, 0, -0.4] 
+let rightArrayY = [0.4, 0, -0.4, 0]
+let rightArrayX = [0, -0.4, 0, 0.4] 
+
+
+function updateAllAxes(_x = 0,_y= 0,_z=0){
+    backAxis[0] += _x
+    backAxis[1] += _y
+    backAxis[2] += _z
+
+    forwardAxis[0] += _x
+    forwardAxis[1] += _y
+    forwardAxis[2] += _z
+
+    rightAxis[0] += _x
+    rightAxis[1] += _y
+    rightAxis[2] += _z
+
+    leftAxis[0] += _x
+    leftAxis[1] += _y
+    leftAxis[2] += _z
+}
 
 let idx = 0;
 
@@ -638,26 +707,41 @@ onKeyDown((e)=>
         case "a":
             moveX = - 1;
             moveZ = 0;
+            if (currentRotation != "left"){
+                idx = 0;
+            }
             currentRotation = RotationDirection.LEFT
+            axis = leftAxis
             moveStarted = true;
             break;
         case "d":
             moveX = 1;
             moveZ = 0;
+            if (currentRotation != "right"){
+                idx = 0;
+            }
             currentRotation = RotationDirection.RIGHT
+            axis = rightAxis
             moveStarted = true;
             break;
         case "s":
             moveX = 0;
             moveZ =  1;
+            if (currentRotation != "backward"){
+                idx = 0;
+            }
             currentRotation = RotationDirection.BACKWARD
+            axis = backAxis
             moveStarted = true;
-            
             break;
         case "w":
             moveX = 0;
             moveZ = -1;
+            if (currentRotation != "forward"){
+                idx = 0;
+            }
             currentRotation = RotationDirection.FORWARD
+            axis = forwardAxis
             moveStarted = true;
             break;
     }
