@@ -408,11 +408,6 @@ let viewDist = 4.5
 let viewPan = 0
 let viewTilt = 0
 
-let moveX = 0;
-let moveZ = 0;
-let posX = 0;
-let posZ = 0;
-
 const RotationDirection = {
     LEFT: 'left',
     RIGHT: 'right',
@@ -477,6 +472,25 @@ const cubeDrawCall = glance.createDrawCall(
     () => cubeCubeMapLoaded.isComplete()
 )
 
+const skyDrawCall = glance.createDrawCall(
+    gl,
+    skyShader,
+    skyVAO,
+    {
+        // uniform update callbacks
+        u_viewRotationMatrix: () => mat3.fromMat4(mat4.multiply(
+            mat4.multiply(mat4.identity(), mat4.fromRotation(viewPan, [0, 1, 0])),
+            mat4.fromRotation(viewTilt, [1, 0, 0])
+        )),
+    },
+    [
+        // texture bindings
+        [0, skyCubemap]
+    ],
+    () => skyCubeMapLoaded.isComplete()
+)
+
+
 
 let cubeRotationMatrix =  mat4.identity();
 
@@ -517,24 +531,6 @@ function rotateAroundAxis2(degree, axis) {
 }
 
 
-const skyDrawCall = glance.createDrawCall(
-    gl,
-    skyShader,
-    skyVAO,
-    {
-        // uniform update callbacks
-        u_viewRotationMatrix: () => mat3.fromMat4(mat4.multiply(
-            mat4.multiply(mat4.identity(), mat4.fromRotation(viewPan, [0, 1, 0])),
-            mat4.fromRotation(viewTilt, [1, 0, 0])
-        )),
-    },
-    [
-        // texture bindings
-        [0, skyCubemap]
-    ],
-    () => skyCubeMapLoaded.isComplete()
-)
-
 
 
 // =============================================================================
@@ -561,7 +557,7 @@ function tween(start, end, duration, time) {
         }
         const currentTime = time - startTime;
         const t = Math.min(1, currentTime / duration)
-        const result =start + t * (end - start)
+        const result = start + t * (end - start)
         if(result == end){
             startedAnimation = false
             moveStarted = false
@@ -606,12 +602,12 @@ setRenderLoop((time) =>
      
         switch(currentRotation){
             case("backward"):
-                y =  backwardArrayY[idx]
-                z =  backwardArrayZ[idx]
+                y = backwardArrayY[idx]
+                z = backwardArrayZ[idx]
                 break;
             case("forward"):
-                y =  forwardArrayY[idx]
-                z =  forwardArrayZ[idx]
+                y = forwardArrayY[idx]
+                z = forwardArrayZ[idx]
                 break;
             case("right"):
                 x = rightArrayX[idx]
@@ -622,13 +618,8 @@ setRenderLoop((time) =>
                 y = leftArrayY[idx]
                 break;
         }
-
-        
-
         updateAllAxes(x,y,z)
         
-
-
        // axis[1] += y
        // axis[2] += z
        // console.log("y="+y +" z="+z)
@@ -698,8 +689,6 @@ onKeyDown((e)=>
     // Access the pressed key using event.key
     switch (e.key) {
         case "a":
-            moveX = - 1;
-            moveZ = 0;
             if (currentRotation != "left"){
                 idx = 0;
             }
@@ -708,8 +697,6 @@ onKeyDown((e)=>
             moveStarted = true;
             break;
         case "d":
-            moveX = 1;
-            moveZ = 0;
             if (currentRotation != "right"){
                 idx = 0;
             }
@@ -718,8 +705,6 @@ onKeyDown((e)=>
             moveStarted = true;
             break;
         case "s":
-            moveX = 0;
-            moveZ =  1;
             if (currentRotation != "backward"){
                 idx = 0;
             }
@@ -728,8 +713,6 @@ onKeyDown((e)=>
             moveStarted = true;
             break;
         case "w":
-            moveX = 0;
-            moveZ = -1;
             if (currentRotation != "forward"){
                 idx = 0;
             }
@@ -738,7 +721,4 @@ onKeyDown((e)=>
             moveStarted = true;
             break;
     }
-
-    posX += moveX * moveSpeed;
-    posZ += moveZ * moveSpeed;
 })
