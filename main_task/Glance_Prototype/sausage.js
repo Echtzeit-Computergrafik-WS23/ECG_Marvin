@@ -190,7 +190,6 @@ const cubeFragmentShader = `#version 300 es
     uniform vec3 u_viewPos;
   
     uniform samplerCube u_cubeMap;
-   
 
     in vec3 f_cubePos;
     in vec3 f_normal;
@@ -328,6 +327,7 @@ const cubeShader = glance.buildShaderProgram(gl, "cube-shader", cubeVertexShader
     u_lightColor:[1,1,1],
     u_projectionMatrix: projectionMatrix,
     u_cubeMap: 0,
+    u_texShadow: 3,
 })
 
 
@@ -386,11 +386,6 @@ const skyVAO = glance.createVAO(gl, "sky-vao", skyIBO, glance.buildAttributeMap(
     "img/Skybox_Front.avif",
     "img/Skybox_Back.avif",
 ])*/
-
-
-
-
-
 
 const [skyCubemap, skyCubeMapLoaded] = glance.loadCubemap(gl, "sky-texture", [
     "img/himmel_rechts.jpg",
@@ -535,12 +530,10 @@ const skyDrawCall = glance.createDrawCall(
     },
     [
         // texture bindings
-        [0, skyCubemap],
+        [0, skyCubemap]
     ],
     () => skyCubeMapLoaded.isComplete()
 )
-
-
 
 
 
