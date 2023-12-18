@@ -201,35 +201,35 @@ function createBoxAttributes(size, position){
     // Create an array of positions for the cube.
     return [
         // Front face
-        -halfWidth + x_offset, -halfHeight +y_offset, halfDepth + z_offset, 0, 0, 1, 0,0,
-        halfWidth + x_offset, -halfHeight+y_offset , halfDepth + z_offset, 0, 0, 1,0,1,
-        halfWidth + x_offset, halfHeight+y_offset, halfDepth + z_offset, 0, 0, 1, 1,0,
-        -halfWidth + x_offset, halfHeight+y_offset, halfDepth + z_offset, 0, 0, 1, 1,1,
+        -halfWidth + x_offset, -halfHeight +y_offset, halfDepth + z_offset, 0, 0, 1, 0,0,  // 0, 1, 0,
+        halfWidth + x_offset, -halfHeight+y_offset , halfDepth + z_offset, 0, 0, 1,0,1,    // 0, 1, 0,
+        halfWidth + x_offset, halfHeight+y_offset, halfDepth + z_offset, 0, 0, 1, 1,1,     // 0, 1, 0,
+        -halfWidth + x_offset, halfHeight+y_offset, halfDepth + z_offset, 0, 0, 1, 1,0,    // 0, 1, 0,
         // Back face
-        halfWidth + x_offset, -halfHeight+y_offset, -halfDepth + z_offset, 0, 0, -1,0,0, 
-        -halfWidth + x_offset, -halfHeight+y_offset, -halfDepth + z_offset, 0, 0, -1, 0,1,
-        -halfWidth + x_offset, halfHeight+y_offset, -halfDepth + z_offset, 0, 0, -1, 1,0,
-        halfWidth + x_offset, halfHeight+y_offset, -halfDepth + z_offset, 0, 0, -1, 1,1,
+        halfWidth + x_offset, -halfHeight+y_offset, -halfDepth + z_offset, 0, 0, -1,0,0,   // 0, -1, 0,
+        -halfWidth + x_offset, -halfHeight+y_offset, -halfDepth + z_offset, 0, 0, -1, 0,1, // 0, -1, 0,   
+        -halfWidth + x_offset, halfHeight+y_offset, -halfDepth + z_offset, 0, 0, -1, 1,1,  // 0, -1, 0,
+        halfWidth + x_offset, halfHeight+y_offset, -halfDepth + z_offset, 0, 0, -1, 1,0,   // 0, -1, 0,
         // Top face
-        -halfWidth + x_offset, halfHeight+y_offset, halfDepth + z_offset, 0, 1, 0, 0,0,
-        halfWidth + x_offset, halfHeight+y_offset, halfDepth + z_offset, 0, 1, 0, 0,1,
-        halfWidth + x_offset, halfHeight+y_offset, -halfDepth + z_offset, 0, 1, 0,1,0,
-        -halfWidth + x_offset, halfHeight+y_offset, -halfDepth + z_offset, 0, 1, 0, 1,1,
+        -halfWidth + x_offset, halfHeight+y_offset, halfDepth + z_offset, 0, 1, 0, 0,0,    // 1, 0, 0,
+        halfWidth + x_offset, halfHeight+y_offset, halfDepth + z_offset, 0, 1, 0, 0,1,     // 1, 0, 0,
+        halfWidth + x_offset, halfHeight+y_offset, -halfDepth + z_offset, 0, 1, 0,1,1,     // 1, 0, 0,
+        -halfWidth + x_offset, halfHeight+y_offset, -halfDepth + z_offset, 0, 1, 0, 1,0,   // 1, 0, 0,
         // Bottom face
-        -halfWidth + x_offset, -halfHeight+y_offset, -halfDepth + z_offset, 0,-1, 0,0,0,
-        halfWidth + x_offset, -halfHeight+y_offset, -halfDepth + z_offset, 0, -1, 0, 0,1,
-        halfWidth + x_offset, -halfHeight+y_offset, halfDepth + z_offset, 0, -1, 0, 1,0,
-        -halfWidth + x_offset, -halfHeight + y_offset, halfDepth + z_offset, 0, -1, 0,1,1,
+        -halfWidth + x_offset, -halfHeight+y_offset, -halfDepth + z_offset, 0,-1, 0,0,0,   // -1, 0, 0,
+        halfWidth + x_offset, -halfHeight+y_offset, -halfDepth + z_offset, 0, -1, 0, 0,1,  // -1, 0, 0,
+        halfWidth + x_offset, -halfHeight+y_offset, halfDepth + z_offset, 0, -1, 0, 1,1,   // -1, 0, 0,
+        -halfWidth + x_offset, -halfHeight + y_offset, halfDepth + z_offset, 0, -1, 0,1,0, // -1, 0, 0,
         // Right face
-        halfWidth + x_offset, -halfHeight + y_offset, halfDepth + z_offset, 1, 0, 0,0,0,
-        halfWidth + x_offset, -halfHeight + y_offset, -halfDepth + z_offset, 1, 0, 0,0,1,
-        halfWidth + x_offset, halfHeight + y_offset, -halfDepth + z_offset, 1, 0, 0,1,0,
-        halfWidth + x_offset, halfHeight + y_offset, halfDepth + z_offset, 1, 0, 0,1,1,
+        halfWidth + x_offset, -halfHeight + y_offset, halfDepth + z_offset, 1, 0, 0,0,0,   // 1, 0, 0,
+        halfWidth + x_offset, -halfHeight + y_offset, -halfDepth + z_offset, 1, 0, 0,0,1,  // 1, 0, 0,
+        halfWidth + x_offset, halfHeight + y_offset, -halfDepth + z_offset, 1, 0, 0,1,1,   // 1, 0, 0,
+        halfWidth + x_offset, halfHeight + y_offset, halfDepth + z_offset, 1, 0, 0,1,0,    // 1, 0, 0,
         // Left face
-        -halfWidth + x_offset, -halfHeight + y_offset, -halfDepth + z_offset, -1, 0, 0,0,0,
-        -halfWidth + x_offset, -halfHeight + y_offset, halfDepth + z_offset, -1, 0, 0,0,1,
-        -halfWidth + x_offset, halfHeight + y_offset, halfDepth + z_offset, -1, 0, 0,1,0,
-        -halfWidth + x_offset, halfHeight + y_offset, -halfDepth + z_offset, -1, 0, 0,1,1,
+        -halfWidth + x_offset, -halfHeight + y_offset, -halfDepth + z_offset, -1, 0, 0,0,0, // 1, 0, 0,
+        -halfWidth + x_offset, -halfHeight + y_offset, halfDepth + z_offset, -1, 0, 0,0,1,  // 1, 0, 0,
+        -halfWidth + x_offset, halfHeight + y_offset, halfDepth + z_offset, -1, 0, 0,1,1,   // 1, 0, 0,
+        -halfWidth + x_offset, halfHeight + y_offset, -halfDepth + z_offset, -1, 0, 0,1,0,  // 1, 0, 0,
     ]
 }
 
@@ -264,7 +264,60 @@ function createSkyBoxIndices()
 }
 
 
-
+function calculateTangents(positions, texCoords, indices) {
+    if (positions.length === 0 || texCoords.length === 0 || indices.length === 0) {
+        logWarning(() => "Skipping calculation of tangents for an empty mesh.");
+        return [];
+    }
+    // Validate the arguments.
+    if (indices.length % 3 !== 0) {
+        throwError(() => "The indices array must be a multiple of 3.");
+    }
+    if (positions.length % 3 !== 0) {
+        throwError(() => "The positions array must be a multiple of 3.");
+    }
+    if (texCoords.length % 2 !== 0) {
+        throwError(() => "The UVs array must be a multiple of 2.");
+    }
+    // Initialize the tangets to zero.
+    const tangents = Array(positions.length).fill(0);
+    // Calculate the tangents for each triangle.
+    for (let faceIndex = 0; faceIndex < indices.length; faceIndex += 3) {
+        const vertIdx1 = indices[faceIndex + 0];
+        const vertIdx2 = indices[faceIndex + 1];
+        const vertIdx3 = indices[faceIndex + 2];
+        const pos1 = slice(positions, vertIdx1 * 3, 3);
+        const pos2 = slice(positions, vertIdx2 * 3, 3);
+        const pos3 = slice(positions, vertIdx3 * 3, 3);
+        const uv1 = slice(texCoords, vertIdx1 * 2, 2);
+        const uv2 = slice(texCoords, vertIdx2 * 2, 2);
+        const uv3 = slice(texCoords, vertIdx3 * 2, 2);
+        const posEdge1 = vec3.subtract(pos2, pos1);
+        const posEdge2 = vec3.subtract(pos3, pos1);
+        const uvEdge1 = vec2.subtract(uv2, uv1);
+        const uvEdge2 = vec2.subtract(uv3, uv1);
+        const r = 1.0 / (uvEdge1[0] * uvEdge2[1] - uvEdge2[0] * uvEdge1[1]);
+        const tangent = [
+            (uvEdge2[1] * posEdge1[0] - uvEdge1[1] * posEdge2[0]) * r,
+            (uvEdge2[1] * posEdge1[1] - uvEdge1[1] * posEdge2[1]) * r,
+            (uvEdge2[1] * posEdge1[2] - uvEdge1[1] * posEdge2[2]) * r,
+        ];
+        for (const vertexIdx of [vertIdx1, vertIdx2, vertIdx3]) {
+            tangents[vertexIdx * 3 + 0] += tangent[0];
+            tangents[vertexIdx * 3 + 1] += tangent[1];
+            tangents[vertexIdx * 3 + 2] += tangent[2];
+        }
+    }
+    // Normalize the tangents, averaging the tangents of vertices that are shared by multiple triangles.
+    for (let vertIdx = 0; vertIdx < tangents.length; vertIdx += 3) {
+        let tangent = slice(tangents, vertIdx, 3);
+        tangent = vec3.normalize(tangent);
+        tangents[vertIdx + 0] = tangent[0];
+        tangents[vertIdx + 1] = tangent[1];
+        tangents[vertIdx + 2] = tangent[2];
+    }
+    return tangents;
+}
 
 
 

@@ -490,13 +490,12 @@ const skyDrawCall = glance.createDrawCall(
     () => skyCubeMapLoaded.isComplete()
 )
 
-const moveSize = 0.4
-const ninetyDegrees = Math.PI/2
 
-let cubeRotationMatrix =  mat4.identity()
 
-const xAxis = [1,0,0]
-const zAxis = [0,0,1]
+let cubeRotationMatrix =  mat4.identity();
+
+let xAxis = [1,0,0]
+let zAxis = [0,0,1]
 
 function rotateAroundAxis2(degree, axis) {
     let rotationMatrix = 0;
@@ -579,21 +578,58 @@ setRenderLoop((time) =>
 
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
   
-    let translationMatrix = mat4.translate(mat4.identity(),[posX,0,posZ])
-    
-    let rotationMatrixX = mat4.fromRotation(rotX,xAxis)
-    let rotationMatrixZ = mat4.fromRotation(rotZ,zAxis)
-
-// problem with rotatation
-    let rotationMatrix = mat4.multiply(rotationMatrixZ,rotationMatrixX);
-    cubeModelMatrix = mat4.multiply (translationMatrix,rotationMatrix);
-    
+    if(moveStarted){
+        let rad = tween(0,Math.PI/2,500,time)       
+        cubeModelMatrix = rotateAroundAxis2(rad,axis)
+    }
 
     glance.performDrawCall(gl, cubeDrawCall, time)
     glance.performDrawCall(gl, worldDrawCall, time)
+    
     glance.performDrawCall(gl, skyDrawCall, time)
 
-    
+    if(rotEnded){
+        
+        
+        // the Matrix for making rotations is rotated 90 degrees, and new bottom axis will be defined
+        cubeRotationMatrix = rotateAroundAxis2(Math.PI/2,axis)
+
+        let x = 0;
+        let y = 0;
+        let z = 0;
+      //  let y = round2Decimals(0.4 * Math.cos(idx * Math.PI/2)) 
+      //  let z = round2Decimals(0.4 * Math.sin(idx * (Math.PI/2 - Math.PI))) 
+     
+        switch(currentRotation){
+            case("backward"):
+                y = backwardArrayY[idx]
+                z = backwardArrayZ[idx]
+                break;
+            case("forward"):
+                y = forwardArrayY[idx]
+                z = forwardArrayZ[idx]
+                break;
+            case("right"):
+                x = rightArrayX[idx]
+                y = rightArrayY[idx]
+                break;
+            case("left"):
+                x = leftArrayX[idx]
+                y = leftArrayY[idx]
+                break;
+        }
+        updateAllAxes(x,y,z)
+        
+       // axis[1] += y
+       // axis[2] += z
+       // console.log("y="+y +" z="+z)
+
+        idx++;
+        if( idx >=4){
+            idx = 0
+        }
+        rotEnded = false
+    }
 })
 
 let forwardArrayY = [0.4, 0, -0.4, 0]
@@ -604,6 +640,7 @@ let leftArrayY = [0.4, 0, -0.4, 0]
 let leftArrayX = [0, 0.4, 0, -0.4] 
 let rightArrayY = [0.4, 0, -0.4, 0]
 let rightArrayX = [0, -0.4, 0, 0.4] 
+
 
 function updateAllAxes(_x = 0,_y= 0,_z=0){
     backAxis[0] += _x
@@ -625,11 +662,19 @@ function updateAllAxes(_x = 0,_y= 0,_z=0){
 
 let idx = 0;
 
+
+function round2Decimals(value){
+    return  Math.round(value * 100) / 100
+}
+
+
 onMouseDrag((e) =>
 {
     viewPan += e.movementX * -.01
     viewTilt += e.movementY * -.01
 })
+
+
 
 viewTilt = 75
 viewDist = 8
@@ -639,49 +684,41 @@ onMouseWheel((e) =>
     viewDist = Math.max(1.5, Math.min(10, viewDist * (1 + Math.sign(e.deltaY) * 0.2)))
 })
 
-
-let keyPressed = false;
-
-
-let posX = 0;
-let posZ = 0;
-
-let rotX = 0;
-let rotZ = 0;
-
 onKeyDown((e)=>
  {
-    
     // Access the pressed key using event.key
-    if(keyPressed){
-        return;
-    }
     switch (e.key) {
         case "a":
-            posX -= moveSize;
-            rotZ -= ninetyDegrees
-            currentRotation = RotationDirection.LEFT;
-           break;
-       case "d":
-            posX += moveSize;
-            rotZ += ninetyDegrees;
-            currentRotation = RotationDirection.RIGHT;  
-           break;
-       case "s":
-            posZ += moveSize;
-            rotX += ninetyDegrees;
-            currentRotation = RotationDirection.BACKWARD;  
-           break;
-       case "w":
-            posZ -= moveSize;
-            rotX -= ninetyDegrees;
-            currentRotation = RotationDirection.FORWARD;  
-           break;
-        }
-    keyPressed = true;
-})
-
-onKeyUp((e)=>
-{
- keyPressed = false;
+            if (currentRotation != "left"){
+                idx = 0;
+            }
+            currentRotation = RotationDirection.LEFT
+            axis = leftAxis
+            moveStarted = true;
+            break;
+        case "d":
+            if (currentRotation != "right"){
+                idx = 0;
+            }
+            currentRotation = RotationDirection.RIGHT
+            axis = rightAxis
+            moveStarted = true;
+            break;
+        case "s":
+            if (currentRotation != "backward"){
+                idx = 0;
+            }
+            currentRotation = RotationDirection.BACKWARD
+            axis = backAxis
+            moveStarted = true;
+            break;
+        case "w":
+            if (currentRotation != "forward"){
+                idx = 0;
+            }
+            currentRotation = RotationDirection.FORWARD
+            axis = forwardAxis
+            moveStarted = true;
+            break;
+    }
 })

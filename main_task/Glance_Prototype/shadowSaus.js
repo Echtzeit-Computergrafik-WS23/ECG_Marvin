@@ -1,5 +1,3 @@
-////////////////////////////////////////////////////////////////////////////////
-// START OF BOILERPLATE CODE ///////////////////////////////////////////////////
 
 // Get the WebGL context
 const canvas = document.getElementById('canvas')
@@ -119,9 +117,15 @@ const worldFragmentShader = `#version 300 es
     uniform vec3 u_viewPos;
     uniform sampler2D u_texDiffuse;
 
-    in vec3 f_worldPos;
-    in vec3 f_normal;
-    in vec2 f_texCoord;
+
+    in mat4 a_modelMatrix;
+    in vec3 a_pos;
+    in vec3 a_normal;
+    in vec3 a_tangent;
+    in mat3 a_normalMatrix;
+    in vec2 a_texCoord;
+
+
 
     out vec4 FragColor;
 
@@ -158,6 +162,8 @@ const worldFragmentShader = `#version 300 es
 const cubeVertexShader = `#version 300 es
     precision highp float;
 
+    uniform mat3 u_invLightRotation;
+    uniform mat4 U_lightXform;
     uniform mat4 u_modelMatrix;
     uniform mat4 u_viewMatrix;
     uniform mat4 u_projectionMatrix;
@@ -170,6 +176,12 @@ const cubeVertexShader = `#version 300 es
     out vec3 f_cubePos;
     out vec3 f_normal;
     out vec3 f_texCoord;
+
+    out vec3 f_posTangentSpace;
+    out vec4 f_posLightSpace;
+    out vec3 f_lightDir;
+    out vec3 f_viewPos;
+  
 
     void main() {
         f_cubePos = vec3(u_modelMatrix * vec4(a_pos, 1.0));
@@ -188,6 +200,8 @@ const cubeFragmentShader = `#version 300 es
     uniform vec3 u_lightPos;
     uniform vec3 u_lightColor;
     uniform vec3 u_viewPos;
+
+    uniform mediump sampler2DShadow u_texShadow;
   
     uniform samplerCube u_cubeMap;
 
@@ -196,6 +210,8 @@ const cubeFragmentShader = `#version 300 es
     in vec3 f_texCoord;
 
     out vec4 FragColor;
+
+    float calculateShadow();
 
     void main() {
 
@@ -219,9 +235,55 @@ const cubeFragmentShader = `#version 300 es
         float specularIntensity = pow(max(dot(normal, halfWay), 0.0), u_shininess);
         vec3 specular = (u_specular * specularIntensity) * texSpecular * u_lightColor;
 
+        // shadow
+        float shadow = calculateShadow();
+
         // color
-        FragColor = vec4(ambient + diffuse + specular, 1.0);
+        FragColor = vec4(ambient + shadow * (diffuse + specular), 1.0);
     }
+
+
+    float calculateShadow() {
+        // Perspective divide.
+        vec3 projCoords = f_posLightSpace.xyz / f_posLightSpace.w;
+
+        // No shadow for fragments outside of the light's frustum.
+        if(any(lessThan(projCoords, vec3(0))) || any(greaterThan(projCoords, vec3(1)))){
+            return 1.0;
+        }
+
+        // Determine the bias based on the angle of the light hitting the texture
+        float bias = max(0.05 * (1.0 - dot(vec3(0.0, 0.0, 1.0), f_lightDir)), 0.005);
+
+        // Get the closest depth value from light's perspective.
+        const vec2 poissonDisk[16] = vec2[](
+            vec2( -0.94201624, -0.39906216 ),
+            vec2( 0.94558609, -0.76890725 ),
+            vec2( -0.094184101, -0.92938870 ),
+            vec2( 0.34495938, 0.29387760 ),
+            vec2( -0.91588581, 0.45771432 ),
+            vec2( -0.81544232, -0.87912464 ),
+            vec2( -0.38277543, 0.27676845 ),
+            vec2( 0.97484398, 0.75648379 ),
+            vec2( 0.44323325, -0.97511554 ),
+            vec2( 0.53742981, -0.47373420 ),
+            vec2( -0.26496911, -0.41893023 ),
+            vec2( 0.79197514, 0.19090188 ),
+            vec2( -0.24188840, 0.99706507 ),
+            vec2( -0.81409955, 0.91437590 ),
+            vec2( 0.19984126, 0.78641367 ),
+            vec2( 0.14383161, -0.14100790 )
+        );
+        float visibility = 0.0;
+        for (int i=0; i<16; i++){
+            int index = int(16.0*random(floor(f_posTangentSpace.xyz*1000.0), i))%16;
+            visibility += texture(u_texShadow, vec3(projCoords.xy + poissonDisk[index]/500.0, projCoords.z - bias));
+        }
+        return visibility / 16.0;
+    }
+
+
+    
 `
 
 
@@ -407,6 +469,55 @@ const [skyCubemap, skyCubeMapLoaded] = glance.loadCubemap(gl, "sky-texture", [
 let viewDist = 4.5
 let viewPan = 0
 let viewTilt = 0
+
+
+
+const viewXform = new glance.Cached(
+    () => mat4.multiply(
+        viewRotation.get(),
+        mat4.fromTranslation([0, 0, viewDist]),
+    ),
+    [viewRotation]
+);
+
+const invViewXform = new glance.Cached(
+    () => mat4.invert(viewXform.get()),
+    [viewXform]
+);
+
+
+
+const rotationSpeed = 0.00003;
+const lightTilt = 0.4;
+const lightRotation = new glance.TimeSensitive(
+    (time) => mat3.fromMat4(mat4.multiply(
+        mat4.fromRotation(-lightTilt, [1, 0, 0]),
+        mat4.fromRotation(time * -rotationSpeed, [0, 1, 0]),
+    )),
+);
+const invLightRotation = new glance.TimeSensitive(
+    (time) => mat3.transpose(lightRotation.getAt(time)),
+);
+const lightXform = new glance.TimeSensitive(
+    (time) => mat4.lookAt(
+        vec3.transformMat3([0, 0, -1], invLightRotation.getAt(time)),
+        [0, 0, 0],
+        [0, 1, 0]
+    )
+);
+
+const cameraProjection = mat4.perspective(Math.PI / 4, 1, 0.1, 14);
+
+const lightProjection = mat4.ortho(-1.43, 1.43, -0.55, 0.77, -0.3, 2.2);
+const textureLightProjection = mat4.multiply(
+    mat4.multiply(
+        mat4.fromTranslation([0.5, 0.5, 0.5]),
+        mat4.fromScaling([0.5, 0.5, 0.5]),
+    ),
+    lightProjection,
+);
+
+
 
 const RotationDirection = {
     LEFT: 'left',
