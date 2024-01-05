@@ -588,6 +588,7 @@ function expandObj(objData, options = {}) {
  */
 async function loadObj(path, options = {}) {
     // Load the OBJ file
+   
     const response = await fetch(path);
     const text = await response.text();
     // Parse the OBJ file
@@ -600,6 +601,8 @@ async function loadObj(path, options = {}) {
         indices,
     };
 }
+
+
 // =============================================================================
 // Private Functions
 // =============================================================================

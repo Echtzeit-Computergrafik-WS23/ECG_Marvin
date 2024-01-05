@@ -75,7 +75,7 @@ const {
 // Constants
 // =============================================================================
 
-const moveSpeed = 0.01;
+const moveSpeed = 0.0035;
 const cubeSize = 0.4;
 
 // =============================================================================
@@ -147,6 +147,50 @@ const worldFragmentShader = `#version 300 es
 
         // color
         FragColor = vec4(ambient + diffuse + specular, 1.0);
+    }
+`;
+
+const solidVertexShader = `#version 300 es
+    precision highp float;
+
+    uniform mat3 u_invLightRotation;
+    uniform mat4 u_lightXform;
+    uniform mat4 u_lightProjection;
+    uniform mat4 u_viewXform;
+    uniform mat4 u_cameraProjection;
+    uniform vec3 u_viewPos;
+
+    in mat4 a_modelMatrix;
+    in vec3 a_pos;
+    in vec3 a_normal;
+    in vec3 a_tangent;
+    in mat3 a_normalMatrix;
+    in vec2 a_texCoord;
+
+    out vec3 f_posTangentSpace;
+    out vec4 f_posLightSpace;
+    out vec3 f_lightDir;
+    out vec3 f_viewPos;
+    out vec2 f_texCoord;
+
+    void main() {
+        vec3 normal = a_normalMatrix * a_normal;
+        vec3 tangent = a_normalMatrix * a_tangent;
+        vec3 bitangent = cross(normal, tangent);
+        mat3 tbn = transpose(mat3(tangent, bitangent, normal));
+
+        // Transform world space coords to light space
+        vec4 worldSpace = a_modelMatrix * vec4(a_pos, 1.0);
+        f_posLightSpace = u_lightProjection * u_lightXform * worldSpace;
+
+        // Transform world space coords to tangent space
+        f_posTangentSpace = tbn * vec3(worldSpace);
+        f_viewPos = tbn * u_viewPos;
+        f_lightDir = tbn * u_invLightRotation * vec3(.0, .0, -1.0);
+
+        f_texCoord = a_texCoord;
+
+        gl_Position = u_cameraProjection * u_viewXform * worldSpace;
     }
 `;
 
@@ -259,7 +303,22 @@ const skyFragmentShader = `#version 300 es
 // Data
 // =============================================================================
 
-const projectionMatrix = mat4.perspective(Math.PI / 4, 1, 0.1, 14);
+
+
+//const cameraProjection = mat4.perspective(Math.PI / 4, 1, 0.1, 14);
+
+const lightProjection = mat4.ortho(-1.43, 1.43, -0.55, 0.77, -0.3, 2.2);
+const textureLightProjection = mat4.multiply(
+    mat4.multiply(
+        mat4.fromTranslation([0.5, 0.5, 0.5]),
+        mat4.fromScaling([0.5, 0.5, 0.5]),
+    ),
+    lightProjection,
+);
+
+
+
+const cameraProjection = mat4.perspective(Math.PI / 4, 1, 0.1, 14);
 
 //----------------------------------------------------------- The world
 const worldShader = glance.buildShaderProgram(gl, "world-shader", worldVertexShader, worldFragmentShader, {
@@ -268,14 +327,11 @@ const worldShader = glance.buildShaderProgram(gl, "world-shader", worldVertexSha
     u_shininess: 0.4,
     u_lightPos: [0, 5, 5],
     u_lightColor: [0.6, 0.6, 0.6],
-    u_projectionMatrix: projectionMatrix,
+    u_projectionMatrix: cameraProjection,
     u_texDiffuse: 0,
 });
 
 const { attributes: platAttr, indices: platIdx } = await glance.loadObj("obj/platform.obj");
-
-const sizeWorld = [4, 0.1, 4];
-const worldpos = [0, -0.25, 0];
 
 const worldIBO = glance.createIndexBuffer(gl, platIdx);
 const worldABO = glance.createAttributeBuffer(gl, "world-abo", platAttr, {
@@ -302,7 +358,7 @@ const cubeShader = glance.buildShaderProgram(gl, "cube-shader", cubeVertexShader
     u_shininess: 0.5,
     u_lightPos: [0, 5, 5],
     u_lightColor: [1, 1, 1],
-    u_projectionMatrix: projectionMatrix,
+    u_projectionMatrix: cameraProjection,
     u_cubeMap: 0,
 });
 
@@ -332,7 +388,7 @@ const cubeVAO = glance.createVAO(
 // -------------------------------------------The skybox
 
 const skyShader = glance.buildShaderProgram(gl, "sky-shader", skyVertexShader, skyFragmentShader, {
-    u_projectionMatrix: projectionMatrix,
+    u_projectionMatrix: cameraProjection,
     u_skybox: 0,
 });
 
@@ -541,12 +597,13 @@ onKeyDown((e) =>
     stepProgress = 0;
 });
 
+/*
 onMouseDrag((e) =>
 {
     viewPan += e.movementX * -.01;
     viewTilt += e.movementY * -.01;
 });
-
+*/
 onMouseWheel((e) =>
 {
     viewDist = Math.max(1.5, Math.min(10, viewDist * (1 + Math.sign(e.deltaY) * 0.2)));
