@@ -452,6 +452,94 @@ const quadFragmentShader = `#version 300 es
     }
 `;
 
+
+const postVertexShader = `#version 300 es
+    precision highp float;
+
+    in vec2 a_pos;
+    in vec2 a_texCoord;
+
+    out vec2 f_texCoord;
+
+    void main()
+    {
+        f_texCoord = a_texCoord;
+        gl_Position = vec4(a_pos, 0.0, 1.0);
+    }
+`;
+
+const postFragmentShader = `#version 300 es
+    precision mediump float;
+
+    uniform sampler2D u_texture;
+    uniform float u_time;
+
+    in vec2 f_texCoord;
+
+    out vec4 FragColor;
+
+    vec3 greyscale(vec3 color)
+    {
+        return vec3(0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b);
+    }
+
+    vec3 applyKernel(sampler2D image, vec2 uv, float kernel[9], float offset)
+    {
+        const vec2 offsets[9] = vec2[](
+            vec2(-1,  1), // top-left
+            vec2( 0,  1), // top-center
+            vec2( 1,  1), // top-right
+            vec2(-1,  0), // center-left
+            vec2( 0,  0), // center-center
+            vec2( 1,  0), // center-right
+            vec2(-1, -1), // bottom-left
+            vec2( 0, -1), // bottom-center
+            vec2( 1, -1)  // bottom-right
+        );
+
+        vec3 color = vec3(0.0);
+        for(int i = 0; i < 9; i++) {
+            color += texture(image, uv + offsets[i] * offset).rgb * kernel[i];
+        }
+        return color;
+    }
+
+    const float sharpenKernel[9] = float[](
+        -1., -1., -1.,
+        -1.,  9., -1.,
+        -1., -1., -1.
+    );
+
+    const float blurKernel[9] = float[](
+        1./ 16., 2./16., 1./16.,
+        2./ 16., 4./16., 2./16.,
+        1./ 16., 2./16., 1./16.
+    );
+
+    const float grainStrength = 65.0;
+
+    void main() {
+        vec2 uv = gl_FragCoord.xy / vec2(512.0, 512.0);
+        float x = (uv.x + 4.0 ) * (uv.y + 4.0 ) * (mod(u_time, 10000.));
+        float grain = 1.0 - ((mod((mod(x, 13.0) + 1.0) * (mod(x, 123.0) + 1.0), 0.01)-0.005) * grainStrength);
+
+        vec3 color = texture(u_texture, f_texCoord).rgb;
+        vec3 blurred = applyKernel(u_texture, f_texCoord, blurKernel, 1.0 / 400.0);
+        vec3 sharpened = applyKernel(u_texture, f_texCoord, sharpenKernel, 1.0 / 400.0);
+
+        color = mix(color, sharpened, 1.0);
+        color = mix(color, blurred, .7);
+        color = greyscale(color);
+        color = color * grain;
+
+        FragColor = vec4(color, 1.0);
+    }
+`;
+
+
+
+
+
 // Shadow ----------------------------------------------------------------------
 
 const shadowVertexShader = `#version 300 es
@@ -656,6 +744,40 @@ const shadowDepthTexture = glance.createTexture(gl, "shadow-depth", 1024, 1024, 
 
 const shadowFramebuffer = glance.createFramebuffer(gl, "shadow-framebuffer", null, shadowDepthTexture);
 
+
+
+
+
+//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!Post FX !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!//
+const postShader = glance.buildShaderProgram(gl, "post-shader", postVertexShader, postFragmentShader, {
+    u_texture: 0,
+});
+
+const postIBO = glance.createIndexBuffer(gl, glance.createQuadIndices());
+
+const postABO = glance.createAttributeBuffer(gl, "post-abo", glance.createQuadAttributes(), {
+    a_pos: { size: 2, type: gl.FLOAT },
+    a_texCoord: { size: 2, type: gl.FLOAT },
+});
+
+const postVAO = glance.createVAO(gl, "post-vao", postIBO, glance.buildAttributeMap(postShader, postABO));
+
+// =============================================================================
+// Framebuffer
+// =============================================================================
+
+const postColor = glance.createTexture(gl, "color-target", 512, 512, gl.TEXTURE_2D, null, {
+    useAnisotropy: false,
+    internalFormat: gl.RGBA8,
+    levels: 1,
+});
+
+const postDepth = glance.createRenderbuffer(gl, "depth-target", 512, 512, gl.DEPTH_COMPONENT16);
+
+const postFramebuffer = glance.createFramebuffer(gl, "framebuffer", postColor, postDepth);
+
+
+
 // =============================================================================
 // Draw Calls
 // =============================================================================
@@ -814,6 +936,26 @@ const shadowDrawCalls = [
     ),
 ];
 
+
+// ------------------------------------------------ Post Draw Call
+const postDrawCall = glance.createDrawCall(
+    gl,
+    postShader,
+    postVAO,
+    {
+        uniforms: {
+            u_time: (time) => time,
+        },
+        textures: [
+            [0, postColor],
+        ],
+        cullFace: gl.NONE,
+        depthTest: gl.NONE,
+    }
+);
+
+
+
 // =============================================================================
 // System Integration
 // =============================================================================
@@ -970,6 +1112,14 @@ setRenderLoop((time) =>
         viewRotation.setDirty();
     }
 
+
+
+    //Render PostFX
+    framebufferStack.push(gl, postFramebuffer);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    
+
+    
     // Render shadow map
     framebufferStack.push(gl, shadowFramebuffer);
     {
@@ -978,14 +1128,22 @@ setRenderLoop((time) =>
             glance.performDrawCall(gl, drawCall, time);
         }
     }
+    
     framebufferStack.pop(gl);
+    //framebufferStack.pop(gl);
 
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     if (0) {
-        glance.performDrawCall(gl, quadDrawCall, time);
+    glance.performDrawCall(gl, postDrawCall, time);
     } else {
+       
+        
         glance.performDrawCall(gl, boxDrawCall, time);
         glance.performDrawCall(gl, floorDrawCall, time);
         glance.performDrawCall(gl, skyDrawCall, time);
+        
     }
+    framebufferStack.pop(gl);
+    glance.performDrawCall(gl, postDrawCall,time);
+
 });
