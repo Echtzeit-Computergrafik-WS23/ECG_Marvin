@@ -2,18 +2,16 @@
 // START OF BOILERPLATE CODE ///////////////////////////////////////////////////
 
 // Get the WebGL context
-const canvas = document.getElementById('canvas')
-const gl = canvas.getContext('webgl2')
+const canvas = document.getElementById('canvas');
+const gl = canvas.getContext('webgl2');
 
 // Add mouse move event handlers to the canvas to update the cursor[] array.
-const cursor = [0, 0]
+const cursor = [0, 0];
 canvas.addEventListener('mousemove', (event) =>
 {
-    cursor[0] = (event.offsetX / canvas.width) * 2 - 1
-    cursor[1] = (event.offsetY / canvas.height) * -2 + 1
-})
-
-
+    cursor[0] = (event.offsetX / canvas.width) * 2 - 1;
+    cursor[1] = (event.offsetY / canvas.height) * -2 + 1;
+});
 
 function onMouseDrag(callback)
 {
@@ -21,35 +19,31 @@ function onMouseDrag(callback)
     {
         const stopDrag = () =>
         {
-            canvas.removeEventListener("pointermove", callback)
-            canvas.removeEventListener("pointerup", stopDrag)
-            canvas.removeEventListener("pointerleave", stopDrag)
-        }
+            canvas.removeEventListener("pointermove", callback);
+            canvas.removeEventListener("pointerup", stopDrag);
+            canvas.removeEventListener("pointerleave", stopDrag);
+        };
 
-        canvas.addEventListener('pointermove', callback)
-        canvas.addEventListener("pointerup", stopDrag, { once: true })
-        canvas.addEventListener("pointerleave", stopDrag, { once: true })
-    })
+        canvas.addEventListener('pointermove', callback);
+        canvas.addEventListener("pointerup", stopDrag, { once: true });
+        canvas.addEventListener("pointerleave", stopDrag, { once: true });
+    });
 }
 
 function onMouseWheel(callback)
 {
-    canvas.addEventListener('wheel', callback)
+    canvas.addEventListener('wheel', callback);
 }
-
-
 
 function onKeyDown(callback)
 {
-    canvas.addEventListener('keydown', callback)
+    canvas.addEventListener('keydown', callback);
 }
 
 function onKeyUp(callback)
 {
-    canvas.addEventListener('keyup', callback)
+    canvas.addEventListener('keyup', callback);
 }
-
-
 
 // Basic render loop manager.
 function setRenderLoop(callback)
@@ -57,16 +51,16 @@ function setRenderLoop(callback)
     function renderLoop(time)
     {
         if (setRenderLoop._callback !== null) {
-            setRenderLoop._callback(time)
-            requestAnimationFrame(renderLoop)
+            setRenderLoop._callback(time);
+            requestAnimationFrame(renderLoop);
         }
     }
-    setRenderLoop._callback = callback
-    requestAnimationFrame(renderLoop)
+    setRenderLoop._callback = callback;
+    requestAnimationFrame(renderLoop);
 }
-setRenderLoop._callback = null
+setRenderLoop._callback = null;
 
-import glance from './js/glance.js'
+import glance from './js/glance.js';
 
 // BOILERPLATE END
 ////////////////////////////////////////////////////////////////////////////////
@@ -75,13 +69,18 @@ const {
     vec3,
     mat3,
     mat4,
-} = glance
+} = glance;
 
+// =============================================================================
+// Constants
+// =============================================================================
+
+const moveSpeed = 0.0035;
+const cubeSize = 0.4;
 
 // =============================================================================
 // Shader Code
 // =============================================================================
-
 
 const worldVertexShader = `#version 300 es
     precision highp float;
@@ -105,8 +104,7 @@ const worldVertexShader = `#version 300 es
         f_texCoord = a_texCoord;
         gl_Position = u_projectionMatrix * u_viewMatrix * u_modelMatrix * vec4(a_pos, 1.0);
     }
-`
-
+`;
 
 const worldFragmentShader = `#version 300 es
     precision mediump float;
@@ -150,10 +148,51 @@ const worldFragmentShader = `#version 300 es
         // color
         FragColor = vec4(ambient + diffuse + specular, 1.0);
     }
-`
+`;
 
+const solidVertexShader = `#version 300 es
+    precision highp float;
 
+    uniform mat3 u_invLightRotation;
+    uniform mat4 u_lightXform;
+    uniform mat4 u_lightProjection;
+    uniform mat4 u_viewXform;
+    uniform mat4 u_cameraProjection;
+    uniform vec3 u_viewPos;
 
+    in mat4 a_modelMatrix;
+    in vec3 a_pos;
+    in vec3 a_normal;
+    in vec3 a_tangent;
+    in mat3 a_normalMatrix;
+    in vec2 a_texCoord;
+
+    out vec3 f_posTangentSpace;
+    out vec4 f_posLightSpace;
+    out vec3 f_lightDir;
+    out vec3 f_viewPos;
+    out vec2 f_texCoord;
+
+    void main() {
+        vec3 normal = a_normalMatrix * a_normal;
+        vec3 tangent = a_normalMatrix * a_tangent;
+        vec3 bitangent = cross(normal, tangent);
+        mat3 tbn = transpose(mat3(tangent, bitangent, normal));
+
+        // Transform world space coords to light space
+        vec4 worldSpace = a_modelMatrix * vec4(a_pos, 1.0);
+        f_posLightSpace = u_lightProjection * u_lightXform * worldSpace;
+
+        // Transform world space coords to tangent space
+        f_posTangentSpace = tbn * vec3(worldSpace);
+        f_viewPos = tbn * u_viewPos;
+        f_lightDir = tbn * u_invLightRotation * vec3(.0, .0, -1.0);
+
+        f_texCoord = a_texCoord;
+
+        gl_Position = u_cameraProjection * u_viewXform * worldSpace;
+    }
+`;
 
 const cubeVertexShader = `#version 300 es
     precision highp float;
@@ -177,7 +216,7 @@ const cubeVertexShader = `#version 300 es
         f_texCoord = a_pos;
         gl_Position = u_projectionMatrix * u_viewMatrix * u_modelMatrix * vec4(a_pos, 1.0);
     }
-`
+`;
 
 const cubeFragmentShader = `#version 300 es
     precision mediump float;
@@ -188,7 +227,7 @@ const cubeFragmentShader = `#version 300 es
     uniform vec3 u_lightPos;
     uniform vec3 u_lightColor;
     uniform vec3 u_viewPos;
-  
+
     uniform samplerCube u_cubeMap;
 
     in vec3 f_cubePos;
@@ -198,7 +237,6 @@ const cubeFragmentShader = `#version 300 es
     out vec4 FragColor;
 
     void main() {
-
         // texture
         vec3 texAmbient = texture(u_cubeMap, f_texCoord).rgb;
         vec3 texDiffuse = texture(u_cubeMap, f_texCoord).rgb;
@@ -222,8 +260,7 @@ const cubeFragmentShader = `#version 300 es
         // color
         FragColor = vec4(ambient + diffuse + specular, 1.0);
     }
-`
-
+`;
 
 const skyVertexShader = `#version 300 es
     precision highp float;
@@ -244,10 +281,7 @@ const skyVertexShader = `#version 300 es
         vec4 ndcPos = u_projectionMatrix * inverse(mat4(u_viewRotationMatrix)) * vec4(a_pos, 1.0);
         gl_Position = ndcPos.xyww;
     }
-`
-
-
-
+`;
 
 const skyFragmentShader = `#version 300 es
     precision mediump float;
@@ -263,16 +297,28 @@ const skyFragmentShader = `#version 300 es
         // texture coordinate (local coordinate) of the fragment on the cube.
         FragColor = texture(u_skybox, f_texCoord);
     }
-`
-
+`;
 
 // =============================================================================
 // Data
 // =============================================================================
 
 
-const projectionMatrix = mat4.perspective(Math.PI / 4, 1, 0.1, 14)
 
+//const cameraProjection = mat4.perspective(Math.PI / 4, 1, 0.1, 14);
+
+const lightProjection = mat4.ortho(-1.43, 1.43, -0.55, 0.77, -0.3, 2.2);
+const textureLightProjection = mat4.multiply(
+    mat4.multiply(
+        mat4.fromTranslation([0.5, 0.5, 0.5]),
+        mat4.fromScaling([0.5, 0.5, 0.5]),
+    ),
+    lightProjection,
+);
+
+
+
+const cameraProjection = mat4.perspective(Math.PI / 4, 1, 0.1, 14);
 
 //----------------------------------------------------------- The world
 const worldShader = glance.buildShaderProgram(gl, "world-shader", worldVertexShader, worldFragmentShader, {
@@ -281,407 +327,285 @@ const worldShader = glance.buildShaderProgram(gl, "world-shader", worldVertexSha
     u_shininess: 0.4,
     u_lightPos: [0, 5, 5],
     u_lightColor: [0.6, 0.6, 0.6],
-    u_projectionMatrix: projectionMatrix,
+    u_projectionMatrix: cameraProjection,
     u_texDiffuse: 0,
-})
+});
 
-const {attributes: platAttr, indices: platIdx} = await glance.loadObj("./obj/platform.obj")
-
-const sizeWorld = [4, 0.1, 4]
-const worldpos = [0,-0.25,0]
-
-//const worldIBO = glance.createIndexBuffer(gl, glance.createBoxIndices());
-// const worldABO = glance.createAttributeBuffer(gl, "world-abo", glance.createBoxAttributes(sizeWorld, worldpos), {
-    //     a_pos: { size: 3, type: gl.FLOAT },
-    //     a_normal: { size: 3, type: gl.FLOAT },
-    //     a_texCoord: { size: 2, type: gl.FLOAT },
-//})
+const { attributes: platAttr, indices: platIdx } = await glance.loadObj("obj/platform.obj");
 
 const worldIBO = glance.createIndexBuffer(gl, platIdx);
 const worldABO = glance.createAttributeBuffer(gl, "world-abo", platAttr, {
     a_pos: { size: 3, type: gl.FLOAT },
     a_normal: { size: 3, type: gl.FLOAT },
     a_texCoord: { size: 2, type: gl.FLOAT },
-})
+});
 
 const worldVAO = glance.createVAO(
     gl,
     "world-vao",
     worldIBO,
-    glance.buildAttributeMap(worldShader, worldABO, ["a_pos", "a_normal","a_texCoord"])
-)
-//const worldTextureAmbient = glance.loadTexture(gl, "img/ground.avif")
-const worldTextureDiffuse = glance.loadTexture(gl, "img/Sand_TextureS.jpg")
-//const worldTextureSpecular = glance.loadTexture(gl, "img/ground.avif")
+    glance.buildAttributeMap(worldShader, worldABO, ["a_pos", "a_normal", "a_texCoord"])
+);
 
-const cubeTextureDiffuse = glance.loadTexture(gl, "img/sauce.avif");
+const worldTextureDiffuse = await glance.loadTextureNow(gl, "img/Sand_TextureS.jpg");
+const cubeTextureDiffuse = await glance.loadTextureNow(gl, "img/sauce.avif");
+
 // ----------------------------------------- Cubeeee
 
-
-
 const cubeShader = glance.buildShaderProgram(gl, "cube-shader", cubeVertexShader, cubeFragmentShader, {
-    u_ambient:0.1,
+    u_ambient: 0.1,
     u_specular: 0.2,
     u_shininess: 0.5,
-    u_lightPos: [0,5,5],
-    u_lightColor:[1,1,1],
-    u_projectionMatrix: projectionMatrix,
+    u_lightPos: [0, 5, 5],
+    u_lightColor: [1, 1, 1],
+    u_projectionMatrix: cameraProjection,
     u_cubeMap: 0,
-    u_texShadow: 3,
-})
+});
 
-
-
-const sizeSmallCube = [0.4, 0.4, 0.4]
-const positionSmallCube = [0, 0, 0]
 const cubeIBO = glance.createIndexBuffer(gl, glance.createBoxIndices());
-const cubeABO = glance.createAttributeBuffer(gl, "cube-abo", glance.createBoxAttributes(sizeSmallCube, positionSmallCube), {
+const cubeABO = glance.createAttributeBuffer(gl, "cube-abo", glance.createBoxAttributes(cubeSize), {
     a_pos: { size: 3, type: gl.FLOAT },
     a_normal: { size: 3, type: gl.FLOAT },
     a_texCoord: { size: 2, type: gl.FLOAT },
-})
+});
 
-
-const [cubeCubemap, cubeCubeMapLoaded] = glance.loadCubemap(gl, "cube-texture", [
+const cubeCubemap = await glance.loadCubemapNow(gl, "cube-texture", [
     "img/cubeTex_1.avif",
     "img/cubeTex_2.avif",
     "img/cubeTex_3.avif",
     "img/cubeTex_4.avif",
     "img/cubeTex_5.avif",
     "img/cubeTex_6.avif",
-])
-
-
-
-
-
+]);
 
 const cubeVAO = glance.createVAO(
     gl,
     "cube-vao",
     cubeIBO,
-    glance.buildAttributeMap(worldShader, cubeABO, ["a_pos", "a_normal","a_texCoord"])
-)
-
+    glance.buildAttributeMap(worldShader, cubeABO, ["a_pos", "a_normal", "a_texCoord"])
+);
 
 // -------------------------------------------The skybox
-const skyShader = glance.buildShaderProgram(gl, "sky-shader", skyVertexShader, skyFragmentShader, {
-    u_projectionMatrix: projectionMatrix,
-    u_skybox: 0,
-})
 
-const skyIBO = glance.createIndexBuffer(gl, glance.createSkyBoxIndices())
+const skyShader = glance.buildShaderProgram(gl, "sky-shader", skyVertexShader, skyFragmentShader, {
+    u_projectionMatrix: cameraProjection,
+    u_skybox: 0,
+});
+
+const skyIBO = glance.createIndexBuffer(gl, glance.createSkyBoxIndices());
 
 const skyABO = glance.createAttributeBuffer(gl, "sky-abo", glance.createSkyBoxAttributes(), {
     a_pos: { size: 3, type: gl.FLOAT },
-})
+});
 
-const skyVAO = glance.createVAO(gl, "sky-vao", skyIBO, glance.buildAttributeMap(skyShader, skyABO, ["a_pos"]))
+const skyVAO = glance.createVAO(gl, "sky-vao", skyIBO, glance.buildAttributeMap(skyShader, skyABO, ["a_pos"]));
 
-/*const [skyCubemap, skyCubeMapLoaded] = glance.loadCubemap(gl, "sky-texture", [
-    "img/Skybox_Right.avif",
-    "img/Skybox_Left.avif",
-    "img/Skybox_Top.avif",
-    "img/Skybox_Bottom.avif",
-    "img/Skybox_Front.avif",
-    "img/Skybox_Back.avif",
-])*/
-
-const [skyCubemap, skyCubeMapLoaded] = glance.loadCubemap(gl, "sky-texture", [
+const skyCubemap = await glance.loadCubemapNow(gl, "sky-texture", [
     "img/himmel_rechts.jpg",
     "img/himmel_links.jpg",
     "img/himmel_oben.jpg",
     "img/himmel_unten.jpg",
     "img/himmel_vorne.jpg",
     "img/himmel_hinten.jpg",
-])
-
-
+]);
 
 // =============================================================================
 // Draw Calls
 // =============================================================================
-
-
-// Scene State
-let viewDist = 4.5
-let viewPan = 0
-let viewTilt = 0
-
-const RotationDirection = {
-    LEFT: 'left',
-    RIGHT: 'right',
-    FORWARD: 'forward',
-    BACKWARD: 'backward'
-};
-let currentRotation = RotationDirection.FORWARD;
-
-let cubeModelMatrix = mat4.identity();
-
-
-
-let moveSpeed = 0.15;
-
 
 const worldDrawCall = glance.createDrawCall(
     gl,
     worldShader,
     worldVAO,
     {
-        // uniform update callbacks
-        u_modelMatrix: (time) => mat4.identity(),
-        u_normalMatrix: (time) => mat3.fromMat4(mat4.transpose(mat4.invert(mat4.identity()))),
-        u_viewMatrix: () => mat4.invert(mat4.multiply(mat4.multiply(
-            mat4.multiply(mat4.identity(), mat4.fromRotation(viewPan, [0, 1, 0])),
-            mat4.fromRotation(viewTilt, [1, 0, 0])
-        ), mat4.fromTranslation([0, 0, viewDist]))),
-        u_viewPos: () => vec3.transformMat4(vec3.zero(), mat4.multiply(mat4.multiply(
-            mat4.multiply(mat4.identity(), mat4.fromRotation(viewPan, [0, 1, 0])),
-            mat4.fromRotation(viewTilt, [1, 0, 0])
-        ), mat4.fromTranslation([0, 0, viewDist]))),
-    },
-    [
-        // texture bindings
-        [0, worldTextureDiffuse]
-    ]
-)
 
+        uniforms: {
+            u_modelMatrix: (time) => mat4.identity(),
+            u_normalMatrix: (time) => mat3.fromMat4(mat4.transpose(mat4.invert(mat4.identity()))),
+            u_viewMatrix: () => mat4.invert(mat4.multiply(mat4.multiply(
+                mat4.multiply(mat4.identity(), mat4.fromRotation(viewPan, [0, 1, 0])),
+                mat4.fromRotation(viewTilt, [1, 0, 0])
+            ), mat4.fromTranslation([0, 0, viewDist]))),
+            u_viewPos: () => vec3.transformMat4(vec3.zero(), mat4.multiply(mat4.multiply(
+                mat4.multiply(mat4.identity(), mat4.fromRotation(viewPan, [0, 1, 0])),
+                mat4.fromRotation(viewTilt, [1, 0, 0])
+            ), mat4.fromTranslation([0, 0, viewDist]))),
+        },
+        textures: [
+            [0, worldTextureDiffuse]
+        ],
+        cullFace: gl.BACK,
+        depthTest: gl.LESS,
+    }
+);
 
 const cubeDrawCall = glance.createDrawCall(
     gl,
     cubeShader,
     cubeVAO,
     {
-
-        // uniform update callbacks
-        u_modelMatrix: (time) => cubeModelMatrix,
-        //u_modelMatrix: (time) => mat4.multiply(mat4.identity(), mat4.rotate(mat4.identity(), 5, 1)),
-        u_normalMatrix: (time) => mat3.fromMat4(mat4.transpose(mat4.invert(cubeModelMatrix))),
-        u_viewMatrix: () => mat4.invert(mat4.multiply(mat4.multiply(
-            mat4.multiply(mat4.identity(), mat4.fromRotation(viewPan, [0, 1, 0])),
-            mat4.fromRotation(viewTilt, [1, 0, 0])
-        ), mat4.fromTranslation([0, 0, viewDist]))),
-        u_viewPos: () => vec3.transformMat4(vec3.zero(), mat4.multiply(mat4.multiply(
-            mat4.multiply(mat4.identity(), mat4.fromRotation(viewPan, [0, 1, 0])),
-            mat4.fromRotation(viewTilt, [1, 0, 0])
-        ), mat4.fromTranslation([0, 0, viewDist]))),
+        uniforms: {
+            u_modelMatrix: () => cubeXform,
+            u_normalMatrix: () => mat3.fromMat4(cubeXform),
+            u_viewMatrix: () => mat4.invert(mat4.multiply(mat4.multiply(
+                mat4.multiply(mat4.identity(), mat4.fromRotation(viewPan, [0, 1, 0])),
+                mat4.fromRotation(viewTilt, [1, 0, 0])
+            ), mat4.fromTranslation([0, 0, viewDist]))),
+            u_viewPos: () => vec3.transformMat4(vec3.zero(), mat4.multiply(mat4.multiply(
+                mat4.multiply(mat4.identity(), mat4.fromRotation(viewPan, [0, 1, 0])),
+                mat4.fromRotation(viewTilt, [1, 0, 0])
+            ), mat4.fromTranslation([0, 0, viewDist]))),
+        },
+        textures: [
+            [0, cubeCubemap]
+        ],
+        cullFace: gl.BACK,
+        depthTest: gl.LESS,
     },
-    [
-        [0, cubeCubemap]
-    ],
-    () => cubeCubeMapLoaded.isComplete()
-)
+);
 
 const skyDrawCall = glance.createDrawCall(
     gl,
     skyShader,
     skyVAO,
     {
-        // uniform update callbacks
-        u_viewRotationMatrix: () => mat3.fromMat4(mat4.multiply(
-            mat4.multiply(mat4.identity(), mat4.fromRotation(viewPan, [0, 1, 0])),
-            mat4.fromRotation(viewTilt, [1, 0, 0])
-        )),
-    },
-    [
-        // texture bindings
-        [0, skyCubemap]
-    ],
-    () => skyCubeMapLoaded.isComplete()
-)
-
-const moveSize = 0.4
-const ninetyDegrees = Math.PI/2
-
-let cubeRotationMatrix =  mat4.identity()
-
-const xAxis = [1,0,0]
-const zAxis = [0,0,1]
-
-function rotateAroundAxis2(degree, axis) {
-    let rotationMatrix = 0;
-    console.log(currentRotation)
-    switch(currentRotation){
-        case("backward"):
-            rotationMatrix = mat4.fromRotation(degree, xAxis);
-            break;
-        case("forward"):
-            rotationMatrix = mat4.fromRotation(-degree, xAxis);
-            break;
-        case("right"):
-            rotationMatrix = mat4.fromRotation(-degree, zAxis);
-            break;
-        case("left"):
-            rotationMatrix = mat4.fromRotation(degree, zAxis);
-            break;
-        default:
-            break;
+        uniforms: {
+            u_viewRotationMatrix: () => mat3.fromMat4(mat4.multiply(
+                mat4.multiply(mat4.identity(), mat4.fromRotation(viewPan, [0, 1, 0])),
+                mat4.fromRotation(viewTilt, [1, 0, 0])
+            )),
+        },
+        textures: [
+            [0, skyCubemap]
+        ],
+        depthTest: gl.LEQUAL,
     }
-    let translatedMatrix = mat4.translate(mat4.identity(), axis);
-
-    // Multiply the input matrix with the translation matrix
-    let updatedMatrix = mat4.multiply( mat4.clone(cubeRotationMatrix), translatedMatrix);
-
-    // Multiply the result with the rotation matrix
-    updatedMatrix = mat4.multiply(updatedMatrix, rotationMatrix);
-
-    // Multiply the result with the inverse of the translation matrix
-    updatedMatrix = mat4.multiply(updatedMatrix, mat4.invert(translatedMatrix));
-
-    return updatedMatrix;
-}
-
-
-
+);
 
 // =============================================================================
 // System Integration
 // =============================================================================
 
-let moveStarted = false;
-let startTime = 0
-let startedAnimation = false
+// Scene State
+let viewDist = 8;
+let viewPan = 0;
+let viewTilt = 75;
 
-let rotEnded = false
+// Store the Cube State in 2 variables, this will make it easier to animate them
+// individually.
+let cubePosition = [0, 0, 0];
+let cubeOrientation = mat4.identity();
+// The complete transformation matrix of the cube is then calculated by combining
+// the rotation and translation.
+let cubeXform = mat4.identity();
 
-let backAxis = [0,-0.2,0.2]
-let forwardAxis = [0,-0.2,-0.2]
-let rightAxis = [0.2,-0.2,0]
-let leftAxis = [-0.2,-0.2,0]
-let axis = backAxis
+let stepProgress = null;
+let stepDirection = null;
 
-
-function tween(start, end, duration, time) {
-        if(!startedAnimation){
-            startTime = time
-            startedAnimation = true
-        }
-        const currentTime = time - startTime;
-        const t = Math.min(1, currentTime / duration)
-        const result = start + t * (end - start)
-        if(result == end){
-            startedAnimation = false
-            moveStarted = false
-            rotEnded = true
-        }
-        return result ;
-}
-
-
-
-
-setRenderLoop((time) =>
+function updateCubeState(deltaTime)
 {
-    // One-time WebGL setup
-    //gl.enable(gl.CULL_FACE);
-    gl.enable(gl.DEPTH_TEST)
-    gl.depthFunc(gl.LEQUAL)
-
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-  
-    let translationMatrix = mat4.translate(mat4.identity(),[posX,0,posZ])
-    
-    let rotationMatrixX = mat4.fromRotation(rotX,xAxis)
-    let rotationMatrixZ = mat4.fromRotation(rotZ,zAxis)
-
-// problem with rotatation
-    let rotationMatrix = mat4.multiply(rotationMatrixZ,rotationMatrixX);
-    cubeModelMatrix = mat4.multiply (translationMatrix,rotationMatrix);
-    
-
-    glance.performDrawCall(gl, cubeDrawCall, time)
-    glance.performDrawCall(gl, worldDrawCall, time)
-    glance.performDrawCall(gl, skyDrawCall, time)
-
-    
-})
-
-let forwardArrayY = [0.4, 0, -0.4, 0]
-let forwardArrayZ = [0, 0.4, 0, -0.4]
-let backwardArrayY = [0.4, 0, -0.4, 0]
-let backwardArrayZ = [0, -0.4, 0, 0.4] 
-let leftArrayY = [0.4, 0, -0.4, 0]
-let leftArrayX = [0, 0.4, 0, -0.4] 
-let rightArrayY = [0.4, 0, -0.4, 0]
-let rightArrayX = [0, -0.4, 0, 0.4] 
-
-function updateAllAxes(_x = 0,_y= 0,_z=0){
-    backAxis[0] += _x
-    backAxis[1] += _y
-    backAxis[2] += _z
-
-    forwardAxis[0] += _x
-    forwardAxis[1] += _y
-    forwardAxis[2] += _z
-
-    rightAxis[0] += _x
-    rightAxis[1] += _y
-    rightAxis[2] += _z
-
-    leftAxis[0] += _x
-    leftAxis[1] += _y
-    leftAxis[2] += _z
-}
-
-let idx = 0;
-
-onMouseDrag((e) =>
-{
-    viewPan += e.movementX * -.01
-    viewTilt += e.movementY * -.01
-})
-
-viewTilt = 75
-viewDist = 8
-
-onMouseWheel((e) =>
-{
-    viewDist = Math.max(1.5, Math.min(10, viewDist * (1 + Math.sign(e.deltaY) * 0.2)))
-})
-
-
-let keyPressed = false;
-
-
-let posX = 0;
-let posZ = 0;
-
-let rotX = 0;
-let rotZ = 0;
-
-onKeyDown((e)=>
- {
-    
-    // Access the pressed key using event.key
-    if(keyPressed){
+    // If there is no animation happening, there is nothing to update.
+    if (stepProgress === null) {
         return;
     }
+
+    // Advance the animation.
+    stepProgress += deltaTime * moveSpeed;
+    
+    const rotationAxis = vec3.rotateY(vec3.clone(stepDirection), Math.PI * 0.5);
+
+    // If we have finished the animation, update the rest position and orientation
+    // of the cube.
+    if (stepProgress >= 1.0) {
+        cubeOrientation = mat4.multiply(mat4.fromRotation(Math.PI * 0.5, rotationAxis), cubeOrientation);
+        cubePosition = vec3.add(cubePosition, vec3.scale(stepDirection, cubeSize));
+        cubeXform = mat4.multiply(mat4.fromTranslation(cubePosition), cubeOrientation);
+
+        stepProgress = null;
+    }
+
+    // If the animation is still in progress, do not touch the "rest" position and
+    // orientiation, only the combined xform.
+    else {
+        // Calculate the rotation from the "rest" orientation to get the animated orientation
+        const rotation = mat4.fromRotation(Math.PI * 0.5 * stepProgress, rotationAxis);
+
+        // Calculate the position of the axis relative to the center of the cube.
+        // We first translate the cube by this offset to place the axis at the origin,
+        // then rotate the cube around the axis, and then translate it back.
+        const axisOffset = vec3.scale(vec3.subtract([0, 1, 0], stepDirection), cubeSize * 0.5);
+
+        // Going backwards:
+        // [1]: Start with the "rest" orientation of the cube
+        // [2]: Translate the cube by the axis offset
+        // [3]: Rotate the cube around the axis
+        // [4]: Translate the cube back by the axis offset
+        // [5]: Translate the cube to its final position in the scene
+        cubeXform = mat4.multiply(
+            mat4.fromTranslation(vec3.subtract(vec3.clone(cubePosition), axisOffset)), // [4 + 5]
+            mat4.multiply(
+                rotation, // [3]
+                mat4.multiply(
+                    mat4.fromTranslation(axisOffset), // [2]
+                    cubeOrientation, // [1]
+                ),
+            )
+        );
+    }
+}
+
+let lastTime = 0;
+setRenderLoop((time) =>
+{
+    const deltaTime = time - lastTime;
+    lastTime = time;
+
+    updateCubeState(deltaTime);
+
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    glance.performDrawCall(gl, cubeDrawCall, time);
+    glance.performDrawCall(gl, worldDrawCall, time);
+    glance.performDrawCall(gl, skyDrawCall, time);
+});
+
+onKeyDown((e) =>
+{
+    // Ignore the key if the box is already moving.
+    if (stepProgress !== null) {
+        return;
+    }
+
+    // Set the move direction based on the key.
     switch (e.key) {
         case "a":
-            posX -= moveSize;
-            rotZ -= ninetyDegrees
-            currentRotation = RotationDirection.LEFT;
-           break;
-       case "d":
-            posX += moveSize;
-            rotZ += ninetyDegrees;
-            currentRotation = RotationDirection.RIGHT;  
-           break;
-       case "s":
-            posZ += moveSize;
-            rotX += ninetyDegrees;
-            currentRotation = RotationDirection.BACKWARD;  
-           break;
-       case "w":
-            posZ -= moveSize;
-            rotX -= ninetyDegrees;
-            currentRotation = RotationDirection.FORWARD;  
-           break;
-        }
-    keyPressed = true;
-})
+            stepDirection = [-1, 0, 0];
+            break;
+        case "d":
+            stepDirection = [1, 0, 0];
+            break;
+        case "s":
+            stepDirection = [0, 0, 1];
+            break;
+        case "w":
+            stepDirection = [0, 0, -1];
+            break;
+        default:
+            return;
+    }
 
-onKeyUp((e)=>
+    // Start the animation, if one of the four movement keys was pressed.
+    stepProgress = 0;
+});
+
+/*
+onMouseDrag((e) =>
 {
- keyPressed = false;
-})
+    viewPan += e.movementX * -.01;
+    viewTilt += e.movementY * -.01;
+});
+*/
+onMouseWheel((e) =>
+{
+    viewDist = Math.max(1.5, Math.min(10, viewDist * (1 + Math.sign(e.deltaY) * 0.2)));
+});
+

@@ -8,7 +8,7 @@
  */
 import * as core from "./core.js";
 import * as core_patterns from "./core_patterns.js";
-// import * as dev from "./dev"
+// import * as dev from "./dev.js"
 import * as geo from "./geo.js";
 import * as math from "./math.js";
 // import * as types from "./types"
@@ -24,12 +24,7 @@ export * from "./geo.js";
 export * from "./math.js";
 export * from "./types.js";
 const glance = Object.freeze({
-    createAttributeBuffer: core.createAttributeBuffer,
-    createDrawCall: core.createDrawCall,
-    createIndexBuffer: core.createIndexBuffer,
-    createVAO: core.createVAO,
-    getContext: core.getContext,
-    performDrawCall: core.performDrawCall,
+    ...core,
     ...core_patterns,
     ...geo,
     ...math,
