@@ -7,20 +7,19 @@ console.log('Hello, WebGL!');
 const canvas = document.getElementById('canvas');
 const gl = canvas.getContext('webgl2');
 
+var toggle = document.getElementById('effektCheckbox');
+
+
 // Add mouse move event handlers to the canvas to update the cursor[] array.
 const cursor = [0, 0];
-canvas.addEventListener('mousemove', (event) =>
-{
+canvas.addEventListener('mousemove', (event) => {
     cursor[0] = (event.offsetX / canvas.width) * 2 - 1;
     cursor[1] = (event.offsetY / canvas.height) * -2 + 1;
 });
 
-function onMouseDrag(callback)
-{
-    canvas.addEventListener('pointerdown', () =>
-    {
-        const stopDrag = () =>
-        {
+function onMouseDrag(callback) {
+    canvas.addEventListener('pointerdown', () => {
+        const stopDrag = () => {
             canvas.removeEventListener("pointermove", callback);
             canvas.removeEventListener("pointerup", stopDrag);
             canvas.removeEventListener("pointerleave", stopDrag);
@@ -32,26 +31,21 @@ function onMouseDrag(callback)
     });
 }
 
-function onMouseWheel(callback)
-{
+function onMouseWheel(callback) {
     canvas.addEventListener('wheel', callback);
 }
 
-function onKeyDown(callback)
-{
+function onKeyDown(callback) {
     canvas.addEventListener('keydown', callback);
 }
 
-function onKeyUp(callback)
-{
+function onKeyUp(callback) {
     canvas.addEventListener('keyup', callback);
 }
 
 // Basic render loop manager.
-function setRenderLoop(callback)
-{
-    function renderLoop(time)
-    {
+function setRenderLoop(callback) {
+    function renderLoop(time) {
         if (setRenderLoop._callback !== null) {
             setRenderLoop._callback(time);
             requestAnimationFrame(renderLoop);
@@ -468,7 +462,7 @@ const postVertexShader = `#version 300 es
     }
 `;
 
-const postFragmentShader = `#version 300 es
+const postFragmentShader2 = `#version 300 es
     precision mediump float;
 
     uniform sampler2D u_texture;
@@ -518,6 +512,8 @@ const postFragmentShader = `#version 300 es
 
     const float grainStrength = 65.0;
 
+    const float bloomIntensity = 13.0;
+
     void main() {
         vec2 uv = gl_FragCoord.xy / vec2(512.0, 512.0);
         float x = (uv.x + 4.0 ) * (uv.y + 4.0 ) * (mod(u_time, 10000.));
@@ -527,14 +523,81 @@ const postFragmentShader = `#version 300 es
         vec3 blurred = applyKernel(u_texture, f_texCoord, blurKernel, 1.0 / 400.0);
         vec3 sharpened = applyKernel(u_texture, f_texCoord, sharpenKernel, 1.0 / 400.0);
 
-        color = mix(color, sharpened, 1.0);
-        color = mix(color, blurred, .7);
-        color = greyscale(color);
-        color = color * grain;
+        //color = mix(color, sharpened, 1.0);
+        //color = mix(color, blurred, .7);
+      
+        // Adjust bloom effect
+        vec3 bloom = bloomIntensity * (color - blurred);
+
+        // Combine the original color, bloom, and grain
+        color = color + bloom;
 
         FragColor = vec4(color, 1.0);
     }
 `;
+
+
+
+const postFragmentShader3 = `#version 300 es
+    precision highp float;
+
+    in vec2 f_texCoord;
+
+    out vec4 fragColor;
+
+    uniform sampler2D u_texture; // The input scene texture
+
+    vec3 shades[4] = vec3[4](
+        vec3(15./255., 56./255., 15./255.),
+        vec3(48./255., 98./255., 48./255.),
+        vec3(139./255., 172./255., 15./255.),
+        vec3(155./255., 188./255., 15./255.)
+    );
+    
+    void main() {
+        vec2 uv = f_texCoord.xy;
+        const float resolution = 160.;
+        uv = floor(uv * resolution) / resolution;
+        
+        vec3 color = texture(u_texture, uv).rgb;
+        
+        float intensity = (color.r + color.g + color.b) / 4.;
+        int index = int(intensity * 6.);
+        
+        fragColor = vec4(shades[index], 1.0);
+    }
+`;
+
+
+const postFragmentShader = `#version 300 es
+precision highp float;
+
+in vec2 f_texCoord;
+out vec4 fragColor;
+
+
+uniform bool toggle_checked;
+uniform sampler2D u_texture; // The input scene texture
+
+float val = 0.0;
+
+void main()
+{
+    if(toggle_checked)
+        val = -0.008;
+    
+
+	vec2 uv = f_texCoord.xy;
+	
+	vec3 col;
+	float eps = 1.0/128.0*sin(0.4*2.0);
+    col.r = texture(u_texture, vec2(uv.x , uv.y)).r;
+	col.g = texture(u_texture, vec2(uv.x,       uv.y)).g;
+	col.b = texture(u_texture, vec2(uv.x ,uv.y + val)).b;
+	
+	fragColor = vec4(col, 1.0);
+} 
+`
 
 
 
@@ -580,7 +643,7 @@ const textureLightProjection = mat4.multiply(
 );
 
 const solidShader = glance.buildShaderProgram(gl, "floor-shader", solidVertexShader, solidFragmentShader, {
-    u_ambient: 5.0,
+    u_ambient: 1.0,
     u_specular: 0.35,
     u_shininess: 64,
     u_lightColor: [1, 1, 1],
@@ -595,7 +658,7 @@ const solidShader = glance.buildShaderProgram(gl, "floor-shader", solidVertexSha
 // Floor -----------------------------------------------------------------------
 
 
-const { attributes: platAttr, indices: platIdx } = await glance.loadObj("obj/platform.obj",{normals:true, tangents:true});
+const { attributes: platAttr, indices: platIdx } = await glance.loadObj("obj/platform.obj", { normals: true, tangents: true });
 
 
 const floorIBO = glance.createIndexBuffer(gl, platIdx);
@@ -610,7 +673,7 @@ const floorABO = glance.createAttributeBuffer(gl, "floor-abo", platAttr, {
 
 
 //const floorModelMatrix = mat4.fromRotation(Math.PI / 2, [-1, 0, 0]);
-const floorModelMatrix = mat4.fromRotation(Math.PI,[0,1,0]);
+const floorModelMatrix = mat4.fromRotation(Math.PI, [0, 1, 0]);
 const floorNormalMatrix = mat3.fromMat4(floorModelMatrix);
 const floorInstanceAttributes = new Float32Array([...floorModelMatrix, ...floorNormalMatrix]);
 /*const floorIABO = glance.createAttributeBuffer(gl, "floor-iabo", floorInstanceAttributes, {
@@ -622,18 +685,18 @@ const floorVAO = glance.createVAO(
     gl,
     "floor-vao",
     floorIBO,
-    glance.buildAttributeMap(solidShader, floorABO,["a_pos","a_texCoord", "a_normal","a_tangent"]),
+    glance.buildAttributeMap(solidShader, floorABO, ["a_pos", "a_texCoord", "a_normal", "a_tangent"]),
 );
 
-const floorTextureDiffuse = await glance.loadTextureNow(gl, "./img/Rockwall_Diffuse.jpg");
-const floorTextureSpecular = await glance.loadTextureNow(gl, "./img/Rockwall_Specular.jpg");
-const floorTextureNormal = await glance.loadTextureNow(gl, "./img/Rockwall_Normal.jpg");
+const floorTextureDiffuse = await glance.loadTextureNow(gl, "./img/rock_wall_diffuse.jpg");
+const floorTextureSpecular = await glance.loadTextureNow(gl, "./img/rock_wall_rough.jpg");
+const floorTextureNormal = await glance.loadTextureNow(gl, "./img/rock_wall_normal.jpg");
 
 // Box -----------------------------------------------------------------------
 
 const boxIBO = glance.createIndexBuffer(gl, glance.createBoxIndices());
 const boxSize = 0.4;
-const boxABO = glance.createAttributeBuffer(gl, "box-abo",glance.createBoxAttributes(boxSize, {tangents:true}), {
+const boxABO = glance.createAttributeBuffer(gl, "box-abo", glance.createBoxAttributes(boxSize, { tangents: true }), {
     a_pos: { size: 3, type: gl.FLOAT },
     a_normal: { size: 3, type: gl.FLOAT },
     a_texCoord: { size: 2, type: gl.FLOAT },
@@ -675,7 +738,7 @@ const boxVAO = glance.createVAO(
     gl,
     "box-vao",
     boxIBO,
-    glance.buildAttributeMap(boxShader, boxABO, ["a_pos", "a_normal","a_tangent"])
+    glance.buildAttributeMap(boxShader, boxABO, ["a_pos", "a_normal", "a_tangent"])
 );
 
 // Skybox ----------------------------------------------------------------------
@@ -815,7 +878,7 @@ const lightTilt = 0.4;
 const lightRotation = new glance.TimeSensitive(
     (time) => mat3.fromMat4(mat4.multiply(
         mat4.fromRotation(-lightTilt, [1, 0, 0]),
-        mat4.fromRotation(0.2, [0, 1, 0]),
+        mat4.fromRotation(0.9, [0, 1, 0]),
     )),
 );
 const invLightRotation = new glance.TimeSensitive(
@@ -945,6 +1008,7 @@ const postDrawCall = glance.createDrawCall(
     {
         uniforms: {
             u_time: (time) => time,
+            toggle_checked: () => toggle.checked,
         },
         textures: [
             [0, postColor],
@@ -971,8 +1035,7 @@ let cubeXform = mat4.identity();
 let stepProgress = null;
 let stepDirection = null;
 
-function updateCubeState(deltaTime)
-{
+function updateCubeState(deltaTime) {
     // If there is no animation happening, there is nothing to update.
     if (stepProgress === null) {
         return;
@@ -980,7 +1043,7 @@ function updateCubeState(deltaTime)
 
     // Advance the animation.
     stepProgress += deltaTime * moveSpeed;
-    
+
     const rotationAxis = vec3.rotateY(vec3.clone(stepDirection), Math.PI * 0.5);
 
     // If we have finished the animation, update the rest position and orientation
@@ -1023,21 +1086,26 @@ function updateCubeState(deltaTime)
     }
 }
 
-onMouseDrag((e) =>
-{
+
+
+
+
+
+onMouseDrag((e) => {
     viewPan += e.movementX * -.01;
     viewTilt += e.movementY * -.01;
     viewRotation.setDirty();
 });
 
-onMouseWheel((e) =>
-{
+onMouseWheel((e) => {
     viewDist = Math.max(1.5, Math.min(5, viewDist * (1 + Math.sign(e.deltaY) * 0.2)));
     viewXform.setDirty();
 });
 
-onKeyDown((e) =>
-{
+onKeyDown((e) => {
+
+   
+
     if (e.key == "ArrowLeft") {
         panDelta = Math.max(panDelta - 1, -1);
     }
@@ -1059,16 +1127,16 @@ onKeyDown((e) =>
     // Set the move direction based on the key.
     switch (e.key) {
         case "a":
-            stepDirection = [-1, 0, 0];
-            break;
-        case "d":
             stepDirection = [1, 0, 0];
             break;
+        case "d":
+            stepDirection = [-1, 0, 0];
+            break;
         case "s":
-            stepDirection = [0, 0, 1];
+            stepDirection = [0, 0, -1];
             break;
         case "w":
-            stepDirection = [0, 0, -1];
+            stepDirection = [0, 0, 1];
             break;
         default:
             return;
@@ -1078,8 +1146,7 @@ onKeyDown((e) =>
     stepProgress = 0;
 });
 
-onKeyUp((e) =>
-{
+onKeyUp((e) => {
     if (e.key == "ArrowLeft") {
         panDelta = Math.min(panDelta + 1, 1);
     }
@@ -1097,8 +1164,7 @@ onKeyUp((e) =>
 const framebufferStack = new glance.FramebufferStack();
 
 let lastTime = 0;
-setRenderLoop((time) =>
-{
+setRenderLoop((time) => {
 
     const deltaTime = time - lastTime;
     lastTime = time;
@@ -1117,9 +1183,9 @@ setRenderLoop((time) =>
     //Render PostFX
     framebufferStack.push(gl, postFramebuffer);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    
 
-    
+
+
     // Render shadow map
     framebufferStack.push(gl, shadowFramebuffer);
     {
@@ -1128,22 +1194,22 @@ setRenderLoop((time) =>
             glance.performDrawCall(gl, drawCall, time);
         }
     }
-    
+
     framebufferStack.pop(gl);
     //framebufferStack.pop(gl);
 
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     if (0) {
-    glance.performDrawCall(gl, postDrawCall, time);
+        glance.performDrawCall(gl, postDrawCall, time);
     } else {
-       
-        
+
+
         glance.performDrawCall(gl, boxDrawCall, time);
         glance.performDrawCall(gl, floorDrawCall, time);
         glance.performDrawCall(gl, skyDrawCall, time);
-        
+
     }
     framebufferStack.pop(gl);
-    glance.performDrawCall(gl, postDrawCall,time);
+    glance.performDrawCall(gl, postDrawCall, time);
 
 });

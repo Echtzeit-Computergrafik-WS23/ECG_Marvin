@@ -556,15 +556,17 @@ function expandObj(objData, options = {}) {
     const attributeArrays = [positions];
     const attributeWidths = [3];
     // Add texture coordinates if requested.
-    if (options.texCoords ?? true) {
-        attributeArrays.push(texCoords);
-        attributeWidths.push(2);
-    }
+    
     // Add normals if requested.
     if (options.normals ?? true) {
         // TODO: calculate normals if they are not present in the OBJ file
         attributeArrays.push(normals);
         attributeWidths.push(3);
+    }
+
+    if (options.texCoords ?? true) {
+        attributeArrays.push(texCoords);
+        attributeWidths.push(2);
     }
     // Calculate tangents if requested.
     if (options.tangents ?? false) {
