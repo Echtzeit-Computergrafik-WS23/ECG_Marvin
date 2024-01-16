@@ -18,24 +18,44 @@
             place-items: center;
             width: 100vw;
             height: 100vh;
+            position: relative;
+        }
+
+        #effektToggle {
+            position: absolute;
+            top: 10px;
+            right: 10px; /* Changed left to right */
+            z-index: 1;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+        }
+
+        #effektCheckbox {
+            margin-top: 10px;
+            margin-left: 5px; /* Changed margin-right to margin-left */
+            width: 20px; /* Increased checkbox size */
+            height: 20px;
         }
 
         canvas {
-            width: 1080px;
-            height: 1080px;
+            width: 600px;
+            height: 600px;
         }
     </style>
 </head>
 
 <body>
     <div id="placer">
-        <canvas id="canvas" width=1080 height=720 tabindex="0"></canvas>
+        <label id="effektToggle">
+            <input type="checkbox" id="effektCheckbox">
+            Toggle Effekt
+        </label>
+        <canvas id="canvas" width=1080 height=1080 tabindex="0"></canvas>
     </div>
 </body>
 
-<!-- Showcases -->
-<!-- <script src="./01-webGl.js" type="module"></script> -->
-<script src="./sausage.js" type="module"></script>
-<!-- <script src="./03-matcap.js" type="module"></script> -->
+<script src="./shadowSausage.js" type="module"></script>
 
 </html>
