@@ -658,7 +658,7 @@ const solidShader = glance.buildShaderProgram(gl, "floor-shader", solidVertexSha
 // Floor -----------------------------------------------------------------------
 
 
-const { attributes: platAttr, indices: platIdx } = await glance.loadObj("obj/platform.obj", { normals: true, tangents: true });
+const { attributes: platAttr, indices: platIdx } = await glance.loadObj("obj/platformGoal.obj", { normals: true, tangents: true });
 
 
 const floorIBO = glance.createIndexBuffer(gl, platIdx);
@@ -688,8 +688,8 @@ const floorVAO = glance.createVAO(
     glance.buildAttributeMap(solidShader, floorABO, ["a_pos", "a_texCoord", "a_normal", "a_tangent"]),
 );
 
-const floorTextureDiffuse = await glance.loadTextureNow(gl, "./img/rock_wall_diffuse.jpg");
-const floorTextureSpecular = await glance.loadTextureNow(gl, "./img/rock_wall_rough.jpg");
+const floorTextureDiffuse = await glance.loadTextureNow(gl, "./img/Rockwall_Diffuse.jpg");
+const floorTextureSpecular = await glance.loadTextureNow(gl, "./img/Rockwall_Specular.jpg");
 const floorTextureNormal = await glance.loadTextureNow(gl, "./img/rock_wall_normal.jpg");
 
 // Box -----------------------------------------------------------------------
@@ -725,12 +725,12 @@ const boxShader = glance.buildShaderProgram(gl, "box-shader", boxVertexShader, b
 
 
 const boxCubemap = await glance.loadCubemapNow(gl, "box-texture", [
-    "img/cubeTex_1.avif",
-    "img/cubeTex_2.avif",
-    "img/cubeTex_3.avif",
-    "img/cubeTex_4.avif",
-    "img/cubeTex_5.avif",
-    "img/cubeTex_6.avif",
+    "img/box_texture.avif",
+    "img/box_texture.avif",
+    "img/box_texture.avif",
+    "img/box_texture.avif",
+    "img/box_texture.avif",
+    "img/box_under_side.avif",
 ]);
 
 
