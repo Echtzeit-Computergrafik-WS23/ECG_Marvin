@@ -578,22 +578,19 @@ out vec4 fragColor;
 
 uniform bool toggle_checked;
 uniform sampler2D u_texture; // The input scene texture
-
+uniform float u_time;
 float val = 0.0;
 
 void main()
 {
+    float eps = 0.0;
     if(toggle_checked)
-        val = -0.008;
-    
-
+        eps = -0.009*sin(u_time*0.005);
 	vec2 uv = f_texCoord.xy;
-	
 	vec3 col;
-	float eps = 1.0/128.0*sin(0.4*2.0);
-    col.r = texture(u_texture, vec2(uv.x , uv.y)).r;
+    col.r = texture(u_texture, vec2(uv.x , uv.y - eps)).r;
 	col.g = texture(u_texture, vec2(uv.x,       uv.y)).g;
-	col.b = texture(u_texture, vec2(uv.x ,uv.y + val)).b;
+	col.b = texture(u_texture, vec2(uv.x ,uv.y +eps)).b;
 	
 	fragColor = vec4(col, 1.0);
 } 
@@ -1008,7 +1005,7 @@ const postDrawCall = glance.createDrawCall(
     {
         uniforms: {
             u_time: (time) => time,
-            toggle_checked: () => toggle.checked,
+            toggle_checked: () => effektOn,
         },
         textures: [
             [0, postColor],
@@ -1018,8 +1015,9 @@ const postDrawCall = glance.createDrawCall(
     }
 );
 
+let winpos = [-0.8,0,2]
 
-
+let effektOn = false;
 // =============================================================================
 // System Integration
 // =============================================================================
@@ -1035,12 +1033,37 @@ let cubeXform = mat4.identity();
 let stepProgress = null;
 let stepDirection = null;
 
+let won = false;
+
+
+let mapPositions =[
+    [0,0,0],
+    [0,0,0.4],
+    [0,0,0.8],
+    [0,0,1.2],
+    [-0.4,0,1.2],
+    [-0.8,0,1.2],
+    [-0.8,0,2],
+    [-0.4,0,0.4],
+    [-0.8,0,0.4],
+    [-0.8,0,0.8],
+    [-1.2,0,0.8],
+    [-0.8,0,1.2],
+    [-0.8,0,1.6]
+]
+
 function updateCubeState(deltaTime) {
     // If there is no animation happening, there is nothing to update.
+    
+    
+    
     if (stepProgress === null) {
         return;
     }
 
+    if(won){
+        return;
+    }
     // Advance the animation.
     stepProgress += deltaTime * moveSpeed;
 
@@ -1052,7 +1075,35 @@ function updateCubeState(deltaTime) {
         cubeOrientation = mat4.multiply(mat4.fromRotation(Math.PI * 0.5, rotationAxis), cubeOrientation);
         cubePosition = vec3.add(cubePosition, vec3.scale(stepDirection, cubeSize));
         cubeXform = mat4.multiply(mat4.fromTranslation(cubePosition), cubeOrientation);
+        let roundedPosition = cubePosition.map(value => parseFloat(value.toFixed(2)));
+        let arraysAreEqual = roundedPosition.every((value, index) => value === winpos[index]);
+        if(arraysAreEqual){
+            console.log("you win");
+            won = true;
+            const winMessage = document.getElementById('win-message');
+            winMessage.classList.add('show');
+        }else{
+            let isMatchingPosition = false;
 
+            // Loop through each position in mapPositions
+            for (let i = 0; i < mapPositions.length; i++) {
+                const position = mapPositions[i];
+
+                // Check if the rounded position matches the current position
+                if (position.every((value, index) => value === roundedPosition[index])) {
+                    isMatchingPosition = true;
+                    break; // Break out of the loop since a match is found
+                }
+            }
+
+            // If not matching, reload the page
+            if (!isMatchingPosition) {
+                effektOn = true;
+                setTimeout(() => {
+                    location.reload();
+                },3000)
+            }
+        }
         stepProgress = null;
     }
 
@@ -1144,6 +1195,9 @@ onKeyDown((e) => {
 
     // Start the animation, if one of the four movement keys was pressed.
     stepProgress = 0;
+
+    console.log(cubePosition);
+
 });
 
 onKeyUp((e) => {

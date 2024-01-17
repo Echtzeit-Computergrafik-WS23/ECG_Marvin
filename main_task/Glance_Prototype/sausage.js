@@ -520,7 +520,8 @@ function updateCubeState(deltaTime)
         cubeOrientation = mat4.multiply(mat4.fromRotation(Math.PI * 0.5, rotationAxis), cubeOrientation);
         cubePosition = vec3.add(cubePosition, vec3.scale(stepDirection, cubeSize));
         cubeXform = mat4.multiply(mat4.fromTranslation(cubePosition), cubeOrientation);
-
+        const winMessage = document.getElementById('win-message');
+        winMessage.classList.add('show');
         stepProgress = null;
     }
 
