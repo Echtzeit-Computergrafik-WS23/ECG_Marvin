@@ -235,6 +235,7 @@ const boxFragmentShader = `#version 300 es
     uniform mediump sampler2DShadow u_texShadow;
 
     uniform samplerCube u_cubeMap;
+    uniform samplerCube u_normalCubeMap;
 
     in vec3 f_posTangentSpace;
     in vec4 f_posLightSpace;
@@ -251,7 +252,7 @@ const boxFragmentShader = `#version 300 es
         // texture
         vec3 texDiffuse = texture(u_cubeMap, f_texCoord).rgb;
         vec3 texSpecular = texture(u_cubeMap, f_texCoord).rgb;
-        vec3 texNormal = texture(u_cubeMap, f_texCoord).rgb;
+        vec3 texNormal = texture(u_normalCubeMap, f_texCoord).rgb;
 
         // ambient
         vec3 ambient = texDiffuse * u_ambient;
@@ -378,23 +379,10 @@ const skyVertexShader = `#version 300 es
     uniform mat4 u_cameraProjection;
 
     in vec3 a_pos;
-
     out vec3 f_texCoord;
 
-    // This matrix rotates the skybox so that the sun shines down the positive
-    // Z axis instead of its native (unaligned) direction.
-    const mat3 baseRotation = mat3(
-        -0.9497352095434962, -0.0835014389652365, 0.30171268028391895,
-        0.0, 0.9637708963658905, 0.26673143668883115,
-        -0.3130543591029702, 0.2533242369155048, -0.9153271542119822
-    );
-
     void main() {
-        // Use the local position of the vertex as texture coordinate.
-        f_texCoord = baseRotation * u_lightRotation * a_pos;
-
-        // By setting Z == W, we ensure that the vertex is projected onto the
-        // far plane, which is exactly what we want for the background.
+        f_texCoord =  u_lightRotation * a_pos;
         vec4 ndcPos = u_cameraProjection * inverse(mat4(u_viewRotation)) * vec4(a_pos, 1.0);
         gl_Position = ndcPos.xyww;
     }
@@ -462,112 +450,6 @@ const postVertexShader = `#version 300 es
     }
 `;
 
-const postFragmentShader2 = `#version 300 es
-    precision mediump float;
-
-    uniform sampler2D u_texture;
-    uniform float u_time;
-
-    in vec2 f_texCoord;
-
-    out vec4 FragColor;
-
-    vec3 greyscale(vec3 color)
-    {
-        return vec3(0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b);
-    }
-
-    vec3 applyKernel(sampler2D image, vec2 uv, float kernel[9], float offset)
-    {
-        const vec2 offsets[9] = vec2[](
-            vec2(-1,  1), // top-left
-            vec2( 0,  1), // top-center
-            vec2( 1,  1), // top-right
-            vec2(-1,  0), // center-left
-            vec2( 0,  0), // center-center
-            vec2( 1,  0), // center-right
-            vec2(-1, -1), // bottom-left
-            vec2( 0, -1), // bottom-center
-            vec2( 1, -1)  // bottom-right
-        );
-
-        vec3 color = vec3(0.0);
-        for(int i = 0; i < 9; i++) {
-            color += texture(image, uv + offsets[i] * offset).rgb * kernel[i];
-        }
-        return color;
-    }
-
-    const float sharpenKernel[9] = float[](
-        -1., -1., -1.,
-        -1.,  9., -1.,
-        -1., -1., -1.
-    );
-
-    const float blurKernel[9] = float[](
-        1./ 16., 2./16., 1./16.,
-        2./ 16., 4./16., 2./16.,
-        1./ 16., 2./16., 1./16.
-    );
-
-    const float grainStrength = 65.0;
-
-    const float bloomIntensity = 13.0;
-
-    void main() {
-        vec2 uv = gl_FragCoord.xy / vec2(512.0, 512.0);
-        float x = (uv.x + 4.0 ) * (uv.y + 4.0 ) * (mod(u_time, 10000.));
-        float grain = 1.0 - ((mod((mod(x, 13.0) + 1.0) * (mod(x, 123.0) + 1.0), 0.01)-0.005) * grainStrength);
-
-        vec3 color = texture(u_texture, f_texCoord).rgb;
-        vec3 blurred = applyKernel(u_texture, f_texCoord, blurKernel, 1.0 / 400.0);
-        vec3 sharpened = applyKernel(u_texture, f_texCoord, sharpenKernel, 1.0 / 400.0);
-
-        //color = mix(color, sharpened, 1.0);
-        //color = mix(color, blurred, .7);
-      
-        // Adjust bloom effect
-        vec3 bloom = bloomIntensity * (color - blurred);
-
-        // Combine the original color, bloom, and grain
-        color = color + bloom;
-
-        FragColor = vec4(color, 1.0);
-    }
-`;
-
-
-
-const postFragmentShader3 = `#version 300 es
-    precision highp float;
-
-    in vec2 f_texCoord;
-
-    out vec4 fragColor;
-
-    uniform sampler2D u_texture; // The input scene texture
-
-    vec3 shades[4] = vec3[4](
-        vec3(15./255., 56./255., 15./255.),
-        vec3(48./255., 98./255., 48./255.),
-        vec3(139./255., 172./255., 15./255.),
-        vec3(155./255., 188./255., 15./255.)
-    );
-    
-    void main() {
-        vec2 uv = f_texCoord.xy;
-        const float resolution = 160.;
-        uv = floor(uv * resolution) / resolution;
-        
-        vec3 color = texture(u_texture, uv).rgb;
-        
-        float intensity = (color.r + color.g + color.b) / 4.;
-        int index = int(intensity * 6.);
-        
-        fragColor = vec4(shades[index], 1.0);
-    }
-`;
-
 
 const postFragmentShader = `#version 300 es
 precision highp float;
@@ -596,10 +478,6 @@ void main()
 } 
 `
 
-
-
-
-
 // Shadow ----------------------------------------------------------------------
 
 const shadowVertexShader = `#version 300 es
@@ -616,7 +494,6 @@ void main()
     gl_Position = u_lightProjection * u_lightXform * u_modelMatrix * vec4(a_pos, 1.0);
 }
 `;
-
 
 const shadowFragmentShader = `#version 300 es
     precision mediump float;
@@ -667,16 +544,9 @@ const floorABO = glance.createAttributeBuffer(gl, "floor-abo", platAttr, {
     a_tangent: { size: 3, type: gl.FLOAT },
 });
 
-
-
-//const floorModelMatrix = mat4.fromRotation(Math.PI / 2, [-1, 0, 0]);
 const floorModelMatrix = mat4.fromRotation(Math.PI, [0, 1, 0]);
 const floorNormalMatrix = mat3.fromMat4(floorModelMatrix);
 const floorInstanceAttributes = new Float32Array([...floorModelMatrix, ...floorNormalMatrix]);
-/*const floorIABO = glance.createAttributeBuffer(gl, "floor-iabo", floorInstanceAttributes, {
-    a_modelMatrix: { size: 4, width: 4, type: gl.FLOAT, divisor: 1 },
-    a_normalMatrix: { size: 3, width: 3, type: gl.FLOAT, divisor: 1 },
-});*/
 
 const floorVAO = glance.createVAO(
     gl,
@@ -703,11 +573,6 @@ const boxABO = glance.createAttributeBuffer(gl, "box-abo", glance.createBoxAttri
 const boxModelMatrix = mat4.fromTranslation([0, 0.2, 0]);
 const boxNormalMatrix = mat3.fromMat4(boxModelMatrix);
 const boxInstanceAttributes = new Float32Array([...boxModelMatrix, ...boxNormalMatrix]);
-/*const boxIABO = glance.createAttributeBuffer(gl, "box-iabo", boxInstanceAttributes, {
-    a_modelMatrix: { size: 4, width: 4, type: gl.FLOAT, divisor: 1 },
-    a_normalMatrix: { size: 3, width: 3, type: gl.FLOAT, divisor: 1 },
-});*/
-
 
 const boxShader = glance.buildShaderProgram(gl, "box-shader", boxVertexShader, boxFragmentShader, {
     u_ambient: 0.7,
@@ -718,16 +583,26 @@ const boxShader = glance.buildShaderProgram(gl, "box-shader", boxVertexShader, b
     u_lightProjection: textureLightProjection,
     u_cubeMap: 0,
     u_texShadow: 1,
+    u_normalCubeMap: 2,
 });
 
-
 const boxCubemap = await glance.loadCubemapNow(gl, "box-texture", [
-    "img/box_texture.avif",
-    "img/box_texture.avif",
-    "img/box_texture.avif",
-    "img/box_texture.avif",
-    "img/box_texture.avif",
-    "img/box_under_side.avif",
+    "img/log90.png",
+    "img/log90.png",
+    "img/log.png",
+    "img/log.png",
+    "img/log_back.png",
+    "img/log_under_texture.png",
+]);
+
+
+const boxNormalmap = await glance.loadCubemapNow(gl, "box-normals", [
+    "img/normalLog90.png",
+    "img/normalLog90.png",
+    "img/normalLog.png",
+    "img/normalLog.png",
+    "img/normalLog.png",
+    "img/normalLog.png",
 ]);
 
 
@@ -752,21 +627,15 @@ const skyABO = glance.createAttributeBuffer(gl, "sky-abo", boxAttributes, {
     a_pos: { size: 3, type: gl.FLOAT },
 });
 
-
-
-
-
-
-
 const skyVAO = glance.createVAO(gl, "sky-vao", skyIBO, glance.buildAttributeMap(skyShader, skyABO));
 
 const skyCubemap = await glance.loadCubemapNow(gl, "sky-texture", [
-    "img/himmel_rechts.jpg",
-    "img/himmel_links.jpg",
-    "img/himmel_oben.jpg",
-    "img/himmel_unten.jpg",
-    "img/himmel_vorne.jpg",
-    "img/himmel_hinten.jpg",
+    "img/forest_right.jpg",
+    "img/forest_left.jpg",
+    "img/forest_top.jpg",
+    "img/forest_bottom.jpg",
+    "img/forest_back.jpg",
+    "img/forest_front.jpg",
 ]);
 
 // Debug Quad ------------------------------------------------------------------
@@ -826,13 +695,13 @@ const postVAO = glance.createVAO(gl, "post-vao", postIBO, glance.buildAttributeM
 // Framebuffer
 // =============================================================================
 
-const postColor = glance.createTexture(gl, "color-target", 512, 512, gl.TEXTURE_2D, null, {
+const postColor = glance.createTexture(gl, "color-target", 1000, 1000, gl.TEXTURE_2D, null, {
     useAnisotropy: false,
     internalFormat: gl.RGBA8,
     levels: 1,
 });
 
-const postDepth = glance.createRenderbuffer(gl, "depth-target", 512, 512, gl.DEPTH_COMPONENT16);
+const postDepth = glance.createRenderbuffer(gl, "depth-target", 1000, 1000, gl.DEPTH_COMPONENT16);
 
 const postFramebuffer = glance.createFramebuffer(gl, "framebuffer", postColor, postDepth);
 
@@ -929,6 +798,7 @@ const boxDrawCall = glance.createDrawCall(
         textures: [
             [0, boxCubemap],
             [1, shadowDepthTexture],
+            [2,boxNormalmap],
         ],
         cullFace: gl.BACK,
         depthTest: gl.LESS,
@@ -1015,7 +885,7 @@ const postDrawCall = glance.createDrawCall(
     }
 );
 
-let winpos = [-0.8,0,2]
+
 
 let effektOn = false;
 // =============================================================================
@@ -1035,7 +905,6 @@ let stepDirection = null;
 
 let won = false;
 
-
 let mapPositions =[
     [0,0,0],
     [0,0,0.4],
@@ -1051,12 +920,10 @@ let mapPositions =[
     [-0.8,0,1.2],
     [-0.8,0,1.6]
 ]
+let winpos = [-0.8,0,2]
 
 function updateCubeState(deltaTime) {
-    // If there is no animation happening, there is nothing to update.
-    
-    
-    
+
     if (stepProgress === null) {
         return;
     }
@@ -1064,7 +931,7 @@ function updateCubeState(deltaTime) {
     if(won){
         return;
     }
-    // Advance the animation.
+    
     stepProgress += deltaTime * moveSpeed;
 
     const rotationAxis = vec3.rotateY(vec3.clone(stepDirection), Math.PI * 0.5);
@@ -1075,6 +942,7 @@ function updateCubeState(deltaTime) {
         cubeOrientation = mat4.multiply(mat4.fromRotation(Math.PI * 0.5, rotationAxis), cubeOrientation);
         cubePosition = vec3.add(cubePosition, vec3.scale(stepDirection, cubeSize));
         cubeXform = mat4.multiply(mat4.fromTranslation(cubePosition), cubeOrientation);
+        
         let roundedPosition = cubePosition.map(value => parseFloat(value.toFixed(2)));
         let arraysAreEqual = roundedPosition.every((value, index) => value === winpos[index]);
         if(arraysAreEqual){
@@ -1096,7 +964,7 @@ function updateCubeState(deltaTime) {
                 }
             }
 
-            // If not matching, reload the page
+            // If not matching,start failure Effekt and reload the page
             if (!isMatchingPosition) {
                 effektOn = true;
                 setTimeout(() => {
@@ -1136,10 +1004,6 @@ function updateCubeState(deltaTime) {
         );
     }
 }
-
-
-
-
 
 
 onMouseDrag((e) => {
@@ -1218,6 +1082,8 @@ onKeyUp((e) => {
 const framebufferStack = new glance.FramebufferStack();
 
 let lastTime = 0;
+
+
 setRenderLoop((time) => {
 
     const deltaTime = time - lastTime;
@@ -1231,8 +1097,6 @@ setRenderLoop((time) => {
         viewTilt += tiltDelta * .02;
         viewRotation.setDirty();
     }
-
-
 
     //Render PostFX
     framebufferStack.push(gl, postFramebuffer);
@@ -1250,7 +1114,6 @@ setRenderLoop((time) => {
     }
 
     framebufferStack.pop(gl);
-    //framebufferStack.pop(gl);
 
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     if (0) {
