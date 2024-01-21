@@ -458,7 +458,7 @@ in vec2 f_texCoord;
 out vec4 fragColor;
 
 
-uniform bool toggle_checked;
+uniform bool u_effectOn;
 uniform sampler2D u_texture; // The input scene texture
 uniform float u_time;
 float val = 0.0;
@@ -466,7 +466,7 @@ float val = 0.0;
 void main()
 {
     float eps = 0.0;
-    if(toggle_checked)
+    if(u_effectOn)
         eps = -0.009*sin(u_time*0.005);
 	vec2 uv = f_texCoord.xy;
 	vec3 col;
@@ -798,7 +798,7 @@ const boxDrawCall = glance.createDrawCall(
         textures: [
             [0, boxCubemap],
             [1, shadowDepthTexture],
-            [2,boxNormalmap],
+            [2, boxNormalmap],
         ],
         cullFace: gl.BACK,
         depthTest: gl.LESS,
@@ -875,7 +875,7 @@ const postDrawCall = glance.createDrawCall(
     {
         uniforms: {
             u_time: (time) => time,
-            toggle_checked: () => effektOn,
+            u_effectOn: () => effektOn,
         },
         textures: [
             [0, postColor],
@@ -905,22 +905,22 @@ let stepDirection = null;
 
 let won = false;
 
-let mapPositions =[
-    [0,0,0],
-    [0,0,0.4],
-    [0,0,0.8],
-    [0,0,1.2],
-    [-0.4,0,1.2],
-    [-0.8,0,1.2],
-    [-0.8,0,2],
-    [-0.4,0,0.4],
-    [-0.8,0,0.4],
-    [-0.8,0,0.8],
-    [-1.2,0,0.8],
-    [-0.8,0,1.2],
-    [-0.8,0,1.6]
+let mapPositions = [
+    [0, 0, 0],
+    [0, 0, 0.4],
+    [0, 0, 0.8],
+    [0, 0, 1.2],
+    [-0.4, 0, 1.2],
+    [-0.8, 0, 1.2],
+    [-0.8, 0, 2],
+    [-0.4, 0, 0.4],
+    [-0.8, 0, 0.4],
+    [-0.8, 0, 0.8],
+    [-1.2, 0, 0.8],
+    [-0.8, 0, 1.2],
+    [-0.8, 0, 1.6]
 ]
-let winpos = [-0.8,0,2]
+let winpos = [-0.8, 0, 2]
 
 function updateCubeState(deltaTime) {
 
@@ -928,10 +928,10 @@ function updateCubeState(deltaTime) {
         return;
     }
 
-    if(won){
+    if (won) {
         return;
     }
-    
+
     stepProgress += deltaTime * moveSpeed;
 
     const rotationAxis = vec3.rotateY(vec3.clone(stepDirection), Math.PI * 0.5);
@@ -942,15 +942,15 @@ function updateCubeState(deltaTime) {
         cubeOrientation = mat4.multiply(mat4.fromRotation(Math.PI * 0.5, rotationAxis), cubeOrientation);
         cubePosition = vec3.add(cubePosition, vec3.scale(stepDirection, cubeSize));
         cubeXform = mat4.multiply(mat4.fromTranslation(cubePosition), cubeOrientation);
-        
+
         let roundedPosition = cubePosition.map(value => parseFloat(value.toFixed(2)));
         let arraysAreEqual = roundedPosition.every((value, index) => value === winpos[index]);
-        if(arraysAreEqual){
+        if (arraysAreEqual) {
             console.log("you win");
             won = true;
             const winMessage = document.getElementById('win-message');
             winMessage.classList.add('show');
-        }else{
+        } else {
             let isMatchingPosition = false;
 
             // Loop through each position in mapPositions
@@ -969,7 +969,7 @@ function updateCubeState(deltaTime) {
                 effektOn = true;
                 setTimeout(() => {
                     location.reload();
-                },3000)
+                }, 3000)
             }
         }
         stepProgress = null;
@@ -1019,7 +1019,7 @@ onMouseWheel((e) => {
 
 onKeyDown((e) => {
 
-   
+
 
     if (e.key == "ArrowLeft") {
         panDelta = Math.max(panDelta - 1, -1);
@@ -1103,7 +1103,6 @@ setRenderLoop((time) => {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
 
-
     // Render shadow map
     framebufferStack.push(gl, shadowFramebuffer);
     {
@@ -1116,16 +1115,12 @@ setRenderLoop((time) => {
     framebufferStack.pop(gl);
 
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    if (0) {
-        glance.performDrawCall(gl, postDrawCall, time);
-    } else {
+
+    glance.performDrawCall(gl, boxDrawCall, time);
+    glance.performDrawCall(gl, floorDrawCall, time);
+    glance.performDrawCall(gl, skyDrawCall, time);
 
 
-        glance.performDrawCall(gl, boxDrawCall, time);
-        glance.performDrawCall(gl, floorDrawCall, time);
-        glance.performDrawCall(gl, skyDrawCall, time);
-
-    }
     framebufferStack.pop(gl);
     glance.performDrawCall(gl, postDrawCall, time);
 
